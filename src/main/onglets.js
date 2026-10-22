@@ -124,6 +124,9 @@ async function assurerVue(id) {
     webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true }
   });
   vue.setBorderRadius(RAYON);
+  // Le fond par défaut d'un navigateur : sans lui, une page qui ne peint pas
+  // le sien (ou pas encore) laisse voir le shell sombre, un écran noir.
+  vue.setBackgroundColor('#ffffff');
   vues.set(id, vue);
   cabler(vue, id);
   extensions.ajouterOnglet(vue.webContents, fenetre);
