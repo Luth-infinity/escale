@@ -1,0 +1,12 @@
+{
+  "name": "escale",
+  "productName": "Escale",
+  "version": "0.1.0",
+  "description": "Navigateur à onglets verticaux, dossiers et espaces, avec extensions Chrome.",
+  "main": "src/main/index.js",
+  "author": "Luth",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  }
+}
