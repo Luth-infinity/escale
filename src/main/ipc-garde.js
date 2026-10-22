@@ -20,4 +20,13 @@ function estShell(frame, urlShell) {
   }
 }
 
-module.exports = { estShell };
+/**
+ * L'adresse d'où charger le shell. Le serveur de dev n'est JAMAIS utilisé par
+ * l'app empaquetée, quels que soient ses arguments : `--dev` ferait confiance
+ * à quiconque écoute sur ce port local.
+ */
+function urlShell({ empaquetee, argv, dev, dist }) {
+  return !empaquetee && !argv.includes('--shell-dist') ? dev : dist;
+}
+
+module.exports = { estShell, urlShell };

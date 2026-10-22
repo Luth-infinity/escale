@@ -3,6 +3,7 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { CHROME_UA } = require('./ua');
 const ipc = require('./ipc');
+const { urlShell } = require('./ipc-garde');
 const store = require('./store');
 const etat = require('./etat');
 const historique = require('./historique');
@@ -15,12 +16,15 @@ const suggestions = require('./suggestions');
 const updates = require('./updates');
 const i18n = require('./i18n');
 
-const isDev = process.argv.includes('--dev') || !app.isPackaged;
-const DEV_SERVER = 'http://localhost:5373/';
+// Le mode dev se déduit de l'empaquetage seul, jamais d'un argument.
+const isDev = !app.isPackaged;
 // --shell-dist : le shell compilé même hors app empaquetée (mesures de perf).
-const URL_SHELL = isDev && !process.argv.includes('--shell-dist')
-  ? DEV_SERVER
-  : pathToFileURL(path.join(__dirname, '../renderer/dist/index.html')).href;
+const URL_SHELL = urlShell({
+  empaquetee: app.isPackaged,
+  argv: process.argv,
+  dev: 'http://localhost:5373/',
+  dist: pathToFileURL(path.join(__dirname, '../renderer/dist/index.html')).href
+});
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
