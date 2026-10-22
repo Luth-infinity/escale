@@ -10,7 +10,7 @@ export type Onglet = {
 export type Reglages = {
   fermetureAutoHeures: number; veilleMinutes: number; bloqueur: boolean; suggestions: boolean; moteur: string;
   langue: string; theme: string; barreRepliee: boolean; zoom: Record<string, number>; derniereVersionVue: string | null;
-  ambiance: boolean;
+  ambiance: boolean; sponsors: boolean;
 };
 export type Etat = {
   version: 1; espaces: Espace[]; dossiers: Dossier[]; onglets: Onglet[]; espaceActif: string; ongletActif: string | null;

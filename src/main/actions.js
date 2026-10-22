@@ -205,6 +205,7 @@ const ACTIONS = {
       suggestions: opt(OUI),
       bloqueur: opt(OUI),
       ambiance: opt(OUI),
+      sponsors: opt(OUI),
       fermetureAutoHeures: opt({ type: 'enum', valeurs: [0, 6, 12, 24, 168] }),
       veilleMinutes: opt({ type: 'enum', valeurs: [0, 10, 20, 60] }),
       derniereVersionVue: opt({ type: 'string', max: 20 })

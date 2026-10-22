@@ -114,9 +114,8 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
       <div className={cn('drag flex h-[52px] shrink-0 items-center gap-0.5 pr-2', mac && !rail && 'pl-[86px]', rail && 'justify-center pr-0')}>
         {/* Hors macOS, pas de feux à gauche : la place revient au logo. */}
         {!mac && (
-          <div className={cn('flex min-w-0 items-center gap-2', !rail && 'mr-auto pl-3')}>
+          <div className={cn('flex items-center', !rail && 'mr-auto pl-3')} title="Escale">
             <Logo className="size-5 shrink-0" />
-            {!rail && <span className="truncate text-[13px] font-semibold tracking-tight">Escale</span>}
           </div>
         )}
         {mac && !rail && <span className="mr-auto" />}

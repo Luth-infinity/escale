@@ -329,4 +329,4 @@ function ouvrirMenu(wc, fenetre, signaler) {
   ).popup({ window: fenetre });
 }
 
-module.exports = { telecharger, annuler, estVideoYouTube, cheminFini, ouvrirMenu, extraireZipUnique };
+module.exports = { telecharger, annuler, estVideoYouTube, cheminFini, ouvrirMenu, extraireZipUnique, LIBELLES };

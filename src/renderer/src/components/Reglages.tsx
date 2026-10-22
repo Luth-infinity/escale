@@ -18,10 +18,11 @@ const CHOIX = [
   { cle: 'veilleMinutes', titre: 'Mettre en veille les onglets inactifs après', options: [[10, '10 min'], [20, '20 min'], [60, '1 h'], [0, 'Jamais']] }
 ] as Choix<keyof R>[];
 
-const INTERRUPTEURS: { cle: 'suggestions' | 'bloqueur' | 'ambiance'; titre: string; detail: string }[] = [
+const INTERRUPTEURS: { cle: 'suggestions' | 'bloqueur' | 'ambiance' | 'sponsors'; titre: string; detail: string }[] = [
   { cle: 'suggestions', titre: 'Suggestions de recherche', detail: 'Envoie ce que vous tapez au moteur (jamais une adresse).' },
   { cle: 'bloqueur', titre: 'Bloquer les publicités et les traqueurs', detail: 'Liste intégrée des principales régies.' },
-  { cle: 'ambiance', titre: 'Ambiance sur YouTube', detail: 'Prolonge la vidéo derrière la page pendant la lecture.' }
+  { cle: 'ambiance', titre: 'Ambiance sur YouTube', detail: 'Prolonge la vidéo derrière la page pendant la lecture.' },
+  { cle: 'sponsors', titre: 'Passer sponsors et pubs sur YouTube', detail: 'Passages signalés par SponsorBlock, et bouton « Ignorer » des publicités.' }
 ];
 
 function Segments<K extends keyof R>({ choix, valeur }: { choix: Choix<K>; valeur: R[K] }) {

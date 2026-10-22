@@ -17,6 +17,7 @@ const REGLAGES = {
   theme: 'system',
   barreRepliee: false,
   ambiance: false,
+  sponsors: true,
   derniereVersionVue: null,
   zoom: {} // hôte → facteur
 };

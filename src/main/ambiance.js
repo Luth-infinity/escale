@@ -296,30 +296,34 @@ function scriptAmbiance() {
 }
 
 /*
- * La bulle : sur YouTube, l'ambiance et le téléchargement vivent dans une
- * pastille flottante de verre dépoli, que l'on déplace où l'on veut, plutôt
- * que dans la barre d'Escale. Elle est dans la page (une vue native couvre
- * tout ce que le shell dessinerait par-dessus), sous un Shadow DOM fermé pour
- * que les styles de YouTube ne l'atteignent pas.
+ * La bulle : sur YouTube, l'ambiance, le téléchargement et le saut des
+ * sponsors vivent dans une bulle de verre posée dans la page (une vue native
+ * couvre tout ce que le shell dessinerait par-dessus), sous un Shadow DOM fermé
+ * que les styles de YouTube n'atteignent pas.
+ *
+ * Elle se comporte en bulle : on la saisit, on la lance, elle file, rebondit
+ * sur les bords en s'écrasant, puis revient toujours se poser en bas à droite,
+ * tirée par un ressort. Au repos, elle flotte et ondule.
  *
  * Elle ne parle pas au principal : elle range ses demandes dans une file que
  * le principal relève (`prendre`). Le monde isolé n'est pas joignable par les
  * scripts de YouTube, qui ne peuvent donc rien y glisser.
  */
-function scriptBulle(libelles) {
+function scriptBulle(L) {
   if (window.__escaleBulle) return;
   const file = [];
-  const etat = { ambiance: false, ouverte: false };
-  const CLE = 'escale-bulle';
+  const etat = { ambiance: false, sponsors: true, vue: null, video: null, toast: null };
+
   // YouTube impose les Trusted Types : pas d'innerHTML, tout se construit à la main.
   const NS = 'http://www.w3.org/2000/svg';
   const el = (nom, attrs = {}, enfants = [], ns) => {
     const e = ns ? document.createElementNS(ns, nom) : document.createElement(nom);
     for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
-    for (const c of enfants) e.append(c);
+    for (const c of enfants) e.append(typeof c === 'string' ? document.createTextNode(c) : c);
     return e;
   };
   const trait = { fill: 'none', stroke: 'currentColor', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+  const icone = (...d) => el('svg', { viewBox: '0 0 24 24', ...trait }, d.map((x) => el('path', { d: x }, [], NS)), NS);
   const ICONES = {
     logo: () =>
       el('svg', { viewBox: '0 0 24 24' }, [
@@ -328,204 +332,512 @@ function scriptBulle(libelles) {
         el('circle', { cx: '12', cy: '12', r: '2.5', fill: 'currentColor' }, [], NS),
         el('circle', { cx: '12', cy: '17.4', r: '1.6', fill: 'none', stroke: 'currentColor', 'stroke-width': '1' }, [], NS)
       ], NS),
-    ambiance: () =>
-      el('svg', { viewBox: '0 0 24 24', ...trait }, [
-        el('path', { d: 'M9.94 14.06 4 20M14.5 3.5 16 7l3.5 1.5L16 10l-1.5 3.5L13 10 9.5 8.5 13 7z' }, [], NS),
-        el('path', { d: 'M5 3v4M3 5h4M19 15v4M17 17h4' }, [], NS)
-      ], NS),
-    telecharger: () => el('svg', { viewBox: '0 0 24 24', ...trait }, [el('path', { d: 'M12 3v12M7 10l5 5 5-5M5 21h14' }, [], NS)], NS)
+    ambiance: () => icone('M9.94 14.06 4 20M14.5 3.5 16 7l3.5 1.5L16 10l-1.5 3.5L13 10 9.5 8.5 13 7z', 'M5 3v4M3 5h4M19 15v4M17 17h4'),
+    telecharger: () => icone('M12 3v12M7 10l5 5 5-5M5 21h14'),
+    sponsors: () => icone('M5 4l10 8-10 8z', 'M19 5v14'),
+    retour: () => icone('M15 18l-6-6 6-6'),
+    suite: () => icone('M9 18l6-6-6-6'),
+    dossier: () => icone('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z')
   };
+
   const STYLE = `
-    :host { all: initial; position: fixed; z-index: 2147483000; left: 0; top: 0; font: 500 13px/1 "Segoe UI", system-ui, sans-serif; }
-    .bulle {
-      --verre: rgba(255, 255, 255, 0.16); --bord: rgba(255, 255, 255, 0.45); --texte: #0f1115; --ombre: rgba(15, 17, 21, 0.28);
-      position: relative; display: flex; align-items: center; gap: 2px; height: 48px; min-width: 48px; padding: 0 4px;
-      box-sizing: border-box; border-radius: 999px; color: var(--texte); cursor: grab; user-select: none; overflow: hidden;
-      background: var(--verre);
-      backdrop-filter: blur(22px) saturate(190%); -webkit-backdrop-filter: blur(22px) saturate(190%);
-      box-shadow: inset 0 1px 0 var(--bord), inset 0 -1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.18), 0 12px 32px -8px var(--ombre);
-      transition: padding .45s cubic-bezier(.34, 1.56, .64, 1), transform .35s cubic-bezier(.34, 1.56, .64, 1);
-      animation: entree .6s cubic-bezier(.34, 1.56, .64, 1) both;
-    }
-    :host([sombre]) .bulle { --verre: rgba(28, 30, 34, 0.38); --bord: rgba(255, 255, 255, 0.22); --texte: #f4f6f8; --ombre: rgba(0, 0, 0, 0.55); }
-    /* Le reflet : un dégradé maillé qui tourne lentement sous le verre. */
-    .bulle::before {
-      content: ''; position: absolute; inset: -60%; z-index: -1; opacity: .55; filter: blur(14px);
-      background:
-        radial-gradient(closest-side at 30% 35%, #1fb3a9, transparent 70%),
-        radial-gradient(closest-side at 70% 30%, #7c6cf2, transparent 70%),
-        radial-gradient(closest-side at 55% 75%, #f29ec1, transparent 70%),
-        radial-gradient(closest-side at 25% 75%, #59c3ff, transparent 70%);
-      animation: maille 14s linear infinite;
-    }
-    .bulle::after {
-      content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 55%);
-      mix-blend-mode: soft-light;
-    }
+    :host { all: initial; position: fixed; z-index: 2147483000; left: 0; top: 0; width: 0; height: 0;
+      font: 500 13px/1.25 "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    .monde { --verre: rgba(255, 255, 255, 0.18); --verre-fort: rgba(255, 255, 255, 0.58); --bord: rgba(255, 255, 255, 0.55);
+      --texte: #0f1115; --doux: rgba(15, 17, 21, 0.6); --ombre: rgba(15, 17, 21, 0.3); --survol: rgba(15, 17, 21, 0.06); }
+    :host([sombre]) .monde { --verre: rgba(30, 32, 36, 0.32); --verre-fort: rgba(28, 30, 34, 0.68); --bord: rgba(255, 255, 255, 0.25);
+      --texte: #f4f6f8; --doux: rgba(244, 246, 248, 0.62); --ombre: rgba(0, 0, 0, 0.6); --survol: rgba(255, 255, 255, 0.08); }
+
+    /* La bulle : posée par le ressort (translate), déformée par la vitesse (forme). */
+    .bulle { position: absolute; left: 0; top: 0; width: 56px; height: 56px; cursor: grab; touch-action: none; }
     .bulle:active { cursor: grabbing; }
-    .bulle.glisse { transform: scale(1.06); transition: transform .2s; }
-    @keyframes maille { to { transform: rotate(360deg); } }
-    @keyframes entree { from { opacity: 0; transform: scale(.6) translateY(12px); } }
-    .logo {
-      width: 38px; height: 38px; margin: 0 1px; flex: none; display: grid; place-items: center; border-radius: 999px; color: #fff;
-      background: linear-gradient(180deg, #1fb3a9, #007a74);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 8px -2px rgba(0, 122, 116, 0.6);
+    .forme { position: absolute; inset: 0; will-change: transform; }
+    .flotte { position: absolute; inset: 0; animation: flotter 5.5s ease-in-out infinite; }
+    .verre {
+      position: absolute; inset: 0; overflow: hidden; color: var(--texte); display: grid; place-items: center;
+      background: var(--verre);
+      backdrop-filter: blur(16px) saturate(200%) brightness(1.05); -webkit-backdrop-filter: blur(16px) saturate(200%) brightness(1.05);
+      box-shadow:
+        inset 0 1.5px 1px rgba(255, 255, 255, 0.75), inset 0 -2px 6px rgba(255, 255, 255, 0.18),
+        inset 0 0 0 1px var(--bord), 0 14px 30px -10px var(--ombre), 0 2px 6px -2px var(--ombre);
+      animation: onduler 9s ease-in-out infinite;
     }
-    .logo svg { width: 24px; height: 24px; }
-    .actions { display: flex; align-items: center; gap: 2px; max-width: 0; opacity: 0; overflow: hidden;
-      transition: max-width .5s cubic-bezier(.34, 1.56, .64, 1), opacity .25s; }
-    .ouverte .actions { max-width: 320px; opacity: 1; }
-    .ouverte { padding-right: 6px; }
-    button {
-      all: unset; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 999px;
-      color: inherit; cursor: pointer; white-space: nowrap; transition: background .2s, opacity .2s;
+    /* Les irisations qui tournent sous le verre, comme sur une bulle de savon. */
+    .verre::before {
+      content: ''; position: absolute; inset: -40%; border-radius: 50%; opacity: .7; filter: blur(10px); mix-blend-mode: screen;
+      background: conic-gradient(from 0deg, #1fb3a9, #59c3ff, #7c6cf2, #f29ec1, #ffd479, #1fb3a9);
+      -webkit-mask: radial-gradient(circle, transparent 46%, #000 62%); mask: radial-gradient(circle, transparent 46%, #000 62%);
+      animation: tourner 7s linear infinite;
     }
-    button:hover { background: rgba(255, 255, 255, 0.22); }
-    :host([sombre]) button:hover { background: rgba(255, 255, 255, 0.1); }
-    button svg { width: 16px; height: 16px; flex: none; }
-    button[aria-pressed="true"] { background: rgba(31, 179, 169, 0.28); }
-    button[aria-pressed="true"] svg { color: #1fb3a9; }
-    button:disabled { opacity: .4; cursor: default; background: none; }
+    /* Le reflet de lumière, en haut à gauche. */
+    .verre::after {
+      content: ''; position: absolute; left: 18%; top: 12%; width: 34%; height: 22%; border-radius: 50%;
+      background: radial-gradient(closest-side, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0));
+      transform: rotate(-28deg); pointer-events: none;
+    }
+    .logo { position: relative; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+      background: radial-gradient(circle at 35% 30%, #3fd1c6, #007a74 70%);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 3px 10px -3px rgba(0, 122, 116, 0.8); transition: transform .4s cubic-bezier(.34, 1.56, .64, 1); }
+    .logo svg { width: 22px; height: 22px; }
+    .bulle:hover .logo { transform: scale(1.08) rotate(-6deg); }
+    .ouverte .logo { transform: scale(.92); }
+    /* La progression d'un téléchargement, en anneau autour de la bulle. */
+    .anneau { position: absolute; inset: -5px; width: 66px; height: 66px; transform: rotate(-90deg); pointer-events: none; opacity: 0; transition: opacity .3s; }
+    .anneau.visible { opacity: 1; }
+    .anneau circle { fill: none; stroke-width: 3; stroke-linecap: round; }
+    .anneau .fond { stroke: rgba(255, 255, 255, 0.25); }
+    .anneau .trace { stroke: #1fb3a9; stroke-dasharray: 189; stroke-dashoffset: 189; transition: stroke-dashoffset .35s; filter: drop-shadow(0 0 4px rgba(31, 179, 169, .7)); }
+    .anneau.attente .trace { stroke-dashoffset: 140; animation: tourner 1s linear infinite; transform-origin: 33px 33px; }
+    .pastille { position: absolute; right: -2px; top: -2px; width: 16px; height: 16px; border-radius: 50%; background: #1fb3a9; color: #fff;
+      display: grid; place-items: center; transform: scale(0); transition: transform .45s cubic-bezier(.34, 1.56, .64, 1); box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+    .pastille.visible { transform: scale(1); }
+    .pastille svg { width: 10px; height: 10px; stroke-width: 3; }
+
+    @keyframes flotter { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(0, -3px); } }
+    @keyframes onduler {
+      0%, 100% { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+      25% { border-radius: 52% 48% 50% 50% / 48% 53% 47% 52%; }
+      50% { border-radius: 48% 52% 53% 47% / 51% 48% 52% 49%; }
+      75% { border-radius: 51% 49% 47% 53% / 53% 50% 50% 47%; }
+    }
+    @keyframes tourner { to { transform: rotate(360deg); } }
+
+    /* Le panneau : il naît de la bulle et s'ouvre au-dessus, côté page. */
+    .panneau {
+      position: absolute; width: 248px; padding: 6px; border-radius: 22px; color: var(--texte);
+      background: var(--verre-fort);
+      backdrop-filter: blur(28px) saturate(190%); -webkit-backdrop-filter: blur(28px) saturate(190%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 0 0 1px var(--bord), 0 24px 48px -16px var(--ombre);
+      transform-origin: var(--origine, 100% 100%); transform: scale(.35); opacity: 0; filter: blur(6px); pointer-events: none;
+      transition: transform .5s cubic-bezier(.34, 1.56, .64, 1), opacity .25s, filter .3s;
+    }
+    .panneau.visible { transform: scale(1); opacity: 1; filter: none; pointer-events: auto; }
+    .titre { display: flex; align-items: center; gap: 6px; padding: 8px 10px 6px; font-size: 11.5px; font-weight: 600; color: var(--doux); }
+    button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 14px;
+      color: inherit; cursor: pointer; transition: background .2s, transform .15s; }
+    button:hover { background: var(--survol); }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .4; cursor: default; background: none; transform: none; }
+    button svg { width: 17px; height: 17px; flex: none; }
+    .libelle { flex: 1; }
+    .ligne-retour { padding: 7px 8px; width: auto; }
+    .interrupteur { width: 30px; height: 18px; border-radius: 9px; background: rgba(127, 127, 127, 0.35); position: relative; flex: none; transition: background .25s; }
+    .interrupteur::after { content: ''; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .35s cubic-bezier(.34, 1.56, .64, 1); }
+    [aria-pressed="true"] .interrupteur { background: #1fb3a9; }
+    [aria-pressed="true"] .interrupteur::after { transform: translateX(12px); }
+    .etat { padding: 4px 10px 8px; font-size: 12px; color: var(--doux); }
+    .barre { height: 4px; margin: 2px 10px 8px; border-radius: 2px; background: rgba(127, 127, 127, 0.25); overflow: hidden; }
+    .barre div { height: 100%; width: 0; border-radius: 2px; background: #1fb3a9; transition: width .35s; }
+    .erreur { color: #e5484d; }
+    .vue { display: none; }
+    .vue.active { display: block; animation: glisser .35s cubic-bezier(.34, 1.56, .64, 1); }
+    @keyframes glisser { from { opacity: 0; transform: translateX(10px); } }
+
+    /* Le message « Sponsor passé » : une capsule qui sort de la bulle. */
+    .toast {
+      position: absolute; display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 6px 0 14px; border-radius: 20px; white-space: nowrap;
+      color: var(--texte); background: var(--verre-fort);
+      backdrop-filter: blur(24px) saturate(190%); -webkit-backdrop-filter: blur(24px) saturate(190%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 0 0 1px var(--bord), 0 16px 32px -14px var(--ombre);
+      transform-origin: var(--origine, 100% 50%); transform: scale(.3); opacity: 0; pointer-events: none;
+      transition: transform .5s cubic-bezier(.34, 1.56, .64, 1), opacity .25s;
+    }
+    .toast.visible { transform: scale(1); opacity: 1; pointer-events: auto; }
+    .toast button { width: auto; padding: 7px 10px; border-radius: 14px; color: #1fb3a9; font-weight: 600; }
   `;
 
   const hote = document.createElement('div');
   const racine = hote.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
   style.textContent = STYLE;
-  const libelle = (texte) => {
-    const s = document.createElement('span');
-    s.textContent = texte;
-    return s;
-  };
-  const bAmbiance = el('button', { class: 'ambiance', 'aria-pressed': 'false' }, [ICONES.ambiance(), libelle(libelles.ambiance)]);
-  const bTelecharger = el('button', { class: 'telecharger' }, [ICONES.telecharger(), libelle(libelles.telecharger)]);
-  const bulle = el('div', { class: 'bulle' }, [
-    el('div', { class: 'logo', title: 'Escale' }, [ICONES.logo()]),
-    el('div', { class: 'actions' }, [bAmbiance, bTelecharger])
-  ]);
-  racine.append(style, bulle);
+
+  // ---- la bulle ----
+  const trace = el('circle', { class: 'trace', cx: '33', cy: '33', r: '30' }, [], NS);
+  const anneau = el('svg', { class: 'anneau', viewBox: '0 0 66 66' }, [el('circle', { class: 'fond', cx: '33', cy: '33', r: '30' }, [], NS), trace], NS);
+  const pastille = el('div', { class: 'pastille' }, [icone('M5 12l5 5L20 7')]);
+  const forme = el('div', { class: 'forme' }, [el('div', { class: 'flotte' }, [el('div', { class: 'verre' }, [el('div', { class: 'logo' }, [ICONES.logo()])]), anneau, pastille])]);
+  const bulle = el('div', { class: 'bulle', title: 'Escale' }, [forme]);
+
+  // ---- le panneau ----
+  const ligne = (ic, texte, attrs = {}, fin = null) => el('button', attrs, [ic, el('span', { class: 'libelle' }, [texte]), ...(fin ? [fin] : [])]);
+  const bAmbiance = ligne(ICONES.ambiance(), L.ambiance, { 'aria-pressed': 'false' }, el('span', { class: 'interrupteur' }));
+  const bSponsors = ligne(ICONES.sponsors(), L.sponsors, { 'aria-pressed': 'true' }, el('span', { class: 'interrupteur' }));
+  const bTelecharger = ligne(ICONES.telecharger(), L.telecharger, {}, ICONES.suite());
+  const etatTexte = el('div', { class: 'etat' });
+  const barreRemplie = el('div');
+  const barre = el('div', { class: 'barre' }, [barreRemplie]);
+  const bDossier = ligne(ICONES.dossier(), L.afficher);
+  const blocTelechargement = el('div', {}, [etatTexte, barre, bDossier]);
+  const vueMenu = el('div', { class: 'vue active' }, [el('div', { class: 'titre' }, ['Escale']), bAmbiance, bSponsors, bTelecharger, blocTelechargement]);
+  const bRetour = el('button', { class: 'ligne-retour' }, [ICONES.retour(), el('span', {}, [L.telecharger])]);
+  const formats = L.formats.map(([id, texte]) => {
+    if (!id) return el('div', { style: 'height:1px;margin:4px 10px;background:rgba(127,127,127,.25)' });
+    const b = ligne(ICONES.telecharger(), texte);
+    b.addEventListener('click', () => {
+      file.push({ type: 'telecharger', format: id });
+      montrer('menu');
+    });
+    return b;
+  });
+  const vueFormats = el('div', { class: 'vue' }, [bRetour, ...formats]);
+  const panneau = el('div', { class: 'panneau' }, [vueMenu, vueFormats]);
+
+  // ---- le message ----
+  const toastTexte = el('span');
+  const bRevenir = el('button', {}, [L.revenir]);
+  const toast = el('div', { class: 'toast' }, [toastTexte, bRevenir]);
+
+  const monde = el('div', { class: 'monde' }, [panneau, toast, bulle]);
+  racine.append(style, monde);
 
   const estVideo = () => (location.pathname === '/watch' && new URLSearchParams(location.search).has('v')) || location.pathname.startsWith('/shorts/');
+  const TAILLE = 56;
+  const MARGE = 24;
+  const maison = () => ({ x: innerWidth - TAILLE - MARGE, y: innerHeight - TAILLE - MARGE });
+  let pos = maison();
+  let vit = { x: 0, y: 0 };
+  let phase = 'repos'; // repos | tenue | vol | retour
+  let tempsVol = 0;
+  // L'écrasement au choc : un petit ressort à part, qui oscille et s'éteint.
+  let choc = { v: 0, x: 0, angle: 0 };
+
+  // ---- le dessin ----
+  const peindre = () => {
+    bulle.style.transform = `translate(${pos.x}px, ${pos.y}px)`;
+    const vitesse = Math.hypot(vit.x, vit.y);
+    const etire = phase === 'repos' ? 0 : Math.min(vitesse / 2600, 0.24);
+    const angleVit = Math.atan2(vit.y, vit.x);
+    const sx = 1 + etire - choc.x * 0.5;
+    const sy = 1 / (1 + etire) + choc.x * 0.5;
+    const a = etire > choc.x ? angleVit : choc.angle;
+    forme.style.transform = `rotate(${a}rad) scale(${sx}, ${sy}) rotate(${-a}rad)`;
+    placerVoisins();
+  };
+
+  // Panneau et message s'ouvrent du côté où il y a la place.
+  const placerVoisins = () => {
+    const gauche = pos.x + TAILLE / 2 > innerWidth / 2;
+    const haut = pos.y + TAILLE / 2 > innerHeight / 2;
+    const ph = panneau.offsetHeight || 220;
+    const px = gauche ? pos.x + TAILLE - 248 : pos.x;
+    const py = haut ? pos.y - ph - 10 : pos.y + TAILLE + 10;
+    panneau.style.left = `${Math.max(8, Math.min(px, innerWidth - 256))}px`;
+    panneau.style.top = `${Math.max(8, py)}px`;
+    panneau.style.setProperty('--origine', `${gauche ? '100%' : '0%'} ${haut ? '100%' : '0%'}`);
+    const tl = toast.offsetWidth || 200;
+    toast.style.left = `${gauche ? pos.x - tl - 10 : pos.x + TAILLE + 10}px`;
+    toast.style.top = `${pos.y + 8}px`;
+    toast.style.setProperty('--origine', `${gauche ? '100%' : '0%'} 50%`);
+  };
+
+  // ---- la physique ----
+  let dernier = 0;
+  let boucle = 0;
+  const animer = (t) => {
+    const dt = Math.min(0.033, dernier ? (t - dernier) / 1000 : 0.016);
+    dernier = t;
+    const m = maison();
+    const limite = { x: innerWidth - TAILLE - 6, y: innerHeight - TAILLE - 6 };
+    if (phase === 'vol') {
+      tempsVol += dt;
+      const frein = Math.exp(-2.2 * dt);
+      vit.x *= frein;
+      vit.y *= frein;
+      pos.x += vit.x * dt;
+      pos.y += vit.y * dt;
+      // Les bords de la page : la bulle rebondit et s'écrase contre eux.
+      const heurter = (axe, angle) => {
+        const force = Math.min(Math.abs(vit[axe]) / 2200, 0.32);
+        vit[axe] = -vit[axe] * 0.62;
+        if (force > 0.02) choc = { v: -force * 18, x: force, angle };
+      };
+      if (pos.x < 6) { pos.x = 6; heurter('x', 0); }
+      if (pos.x > limite.x) { pos.x = limite.x; heurter('x', 0); }
+      if (pos.y < 6) { pos.y = 6; heurter('y', Math.PI / 2); }
+      if (pos.y > limite.y) { pos.y = limite.y; heurter('y', Math.PI / 2); }
+      if (Math.hypot(vit.x, vit.y) < 220 || tempsVol > 1.1) phase = 'retour';
+    } else if (phase === 'retour') {
+      // Un ressort un peu souple : la bulle dépasse sa place, puis s'y pose.
+      const k = 70;
+      const c = 10.5;
+      vit.x += (k * (m.x - pos.x) - c * vit.x) * dt;
+      vit.y += (k * (m.y - pos.y) - c * vit.y) * dt;
+      pos.x += vit.x * dt;
+      pos.y += vit.y * dt;
+      if (Math.hypot(m.x - pos.x, m.y - pos.y) < 0.4 && Math.hypot(vit.x, vit.y) < 4) {
+        pos = m;
+        vit = { x: 0, y: 0 };
+        phase = 'repos';
+      }
+    }
+    // Le choc s'amortit en oscillant, comme une goutte.
+    choc.v += (-320 * choc.x - 9 * choc.v) * dt;
+    choc.x += choc.v * dt;
+    if (Math.abs(choc.x) < 0.002 && Math.abs(choc.v) < 0.02) choc = { v: 0, x: 0, angle: choc.angle };
+    peindre();
+    const finie = phase === 'repos' && choc.x === 0;
+    boucle = finie ? 0 : requestAnimationFrame(animer);
+  };
+  const relancer = () => {
+    if (boucle) return;
+    dernier = 0;
+    boucle = requestAnimationFrame(animer);
+  };
+
+  // ---- saisir et lancer ----
+  let prise = null;
+  bulle.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    bulle.setPointerCapture(e.pointerId);
+    prise = { dx: e.clientX - pos.x, dy: e.clientY - pos.y, x0: e.clientX, y0: e.clientY, bouge: false, traces: [{ x: e.clientX, y: e.clientY, t: performance.now() }] };
+    vit = { x: 0, y: 0 };
+  });
+  bulle.addEventListener('pointermove', (e) => {
+    if (!prise) return;
+    if (!prise.bouge && Math.hypot(e.clientX - prise.x0, e.clientY - prise.y0) < 5) return;
+    if (!prise.bouge) {
+      prise.bouge = true;
+      montrer(null);
+      phase = 'tenue';
+      if (boucle) cancelAnimationFrame(boucle);
+      boucle = 0;
+    }
+    const t = performance.now();
+    prise.traces.push({ x: e.clientX, y: e.clientY, t });
+    while (prise.traces.length > 2 && t - prise.traces[0].t > 90) prise.traces.shift();
+    const p0 = prise.traces[0];
+    const dtt = Math.max(0.008, (t - p0.t) / 1000);
+    vit = { x: (e.clientX - p0.x) / dtt, y: (e.clientY - p0.y) / dtt };
+    pos = { x: e.clientX - prise.dx, y: e.clientY - prise.dy };
+    peindre();
+  });
+  const lacher = () => {
+    if (!prise) return;
+    const bouge = prise.bouge;
+    prise = null;
+    if (!bouge) {
+      montrer(etat.vue ? null : 'menu');
+      return;
+    }
+    // Lancée : l'élan des derniers instants, plafonné.
+    const v = Math.hypot(vit.x, vit.y);
+    const plafond = 4200;
+    if (v > plafond) vit = { x: (vit.x / v) * plafond, y: (vit.y / v) * plafond };
+    phase = v > 250 ? 'vol' : 'retour';
+    tempsVol = 0;
+    relancer();
+  };
+  bulle.addEventListener('pointerup', lacher);
+  bulle.addEventListener('pointercancel', lacher);
+
+  // ---- panneau ----
+  const montrer = (vue) => {
+    etat.vue = vue;
+    panneau.classList.toggle('visible', Boolean(vue));
+    bulle.classList.toggle('ouverte', Boolean(vue));
+    vueMenu.classList.toggle('active', vue !== 'formats');
+    vueFormats.classList.toggle('active', vue === 'formats');
+    rafraichir();
+    requestAnimationFrame(placerVoisins);
+  };
+  bAmbiance.addEventListener('click', () => file.push({ type: 'ambiance' }));
+  bSponsors.addEventListener('click', () => file.push({ type: 'sponsors' }));
+  bTelecharger.addEventListener('click', () => montrer('formats'));
+  bRetour.addEventListener('click', () => montrer('menu'));
+  bDossier.addEventListener('click', () => {
+    if (etat.video) file.push({ type: 'montrer', id: etat.video.id });
+  });
+  // Un clic ailleurs dans la page referme le panneau.
+  document.addEventListener('pointerdown', (e) => {
+    if (etat.vue && !e.composedPath().includes(hote)) montrer(null);
+  }, true);
+
   const rafraichir = () => {
-    bulle.classList.toggle('ouverte', etat.ouverte);
     bAmbiance.setAttribute('aria-pressed', String(etat.ambiance));
     bAmbiance.disabled = location.pathname !== '/watch';
+    bSponsors.setAttribute('aria-pressed', String(etat.sponsors));
     bTelecharger.disabled = !estVideo();
+    const v = etat.video;
+    blocTelechargement.style.display = v ? '' : 'none';
+    if (v) {
+      const enCours = v.etat === 'prepare' || v.etat === 'en-cours';
+      const p = v.total > 0 ? Math.min(100, Math.round(((v.recu || 0) / v.total) * 100)) : null;
+      etatTexte.className = 'etat' + (v.etat === 'echec' ? ' erreur' : '');
+      etatTexte.textContent = v.etat === 'prepare' ? (v.detail || L.preparation)
+        : v.etat === 'en-cours' ? (p === null ? L.enCours : `${L.enCours} ${p} %`)
+        : v.etat === 'fini' ? L.termine
+        : (v.erreur || L.echec);
+      barre.style.display = enCours ? '' : 'none';
+      barreRemplie.style.width = `${p ?? 15}%`;
+      bDossier.style.display = v.etat === 'fini' ? '' : 'none';
+      anneau.classList.toggle('visible', enCours);
+      anneau.classList.toggle('attente', enCours && p === null);
+      trace.style.strokeDashoffset = String(189 - (189 * (p ?? 0)) / 100);
+    } else {
+      anneau.classList.remove('visible');
+    }
     if (document.documentElement.hasAttribute('dark')) hote.setAttribute('sombre', '');
     else hote.removeAttribute('sombre');
     // Rien par-dessus une vidéo en plein écran.
     hote.style.display = document.fullscreenElement ? 'none' : '';
   };
 
-  // Position : retenue d'une visite à l'autre, gardée dans la fenêtre.
-  let pos = { x: innerWidth - 96, y: innerHeight - 120 };
-  try {
-    const lu = JSON.parse(localStorage.getItem(CLE) || 'null');
-    if (lu && Number.isFinite(lu.x) && Number.isFinite(lu.y)) pos = lu;
-  } catch {
-    // Stockage refusé : position par défaut.
-  }
-  // La bulle ouverte s'élargit : près du bord droit, elle glisse vers la gauche
-  // pour rester entière (`affiche`), sans perdre la place choisie (`pos`).
-  const placer = () => {
-    const r = bulle.getBoundingClientRect();
-    pos.x = Math.min(Math.max(8, pos.x), innerWidth - 56);
-    pos.y = Math.min(Math.max(8, pos.y), innerHeight - 56);
-    const x = Math.min(pos.x, innerWidth - Math.max(48, r.width) - 8);
-    hote.style.transform = `translate(${x}px, ${pos.y}px)`;
+  // ---- message éphémère ----
+  let minuteurToast = 0;
+  const annoncer = (texte, revenir) => {
+    toastTexte.textContent = texte;
+    bRevenir.style.display = revenir ? '' : 'none';
+    bRevenir.onclick = () => {
+      if (revenir) revenir();
+      toast.classList.remove('visible');
+    };
+    toast.classList.add('visible');
+    // Un petit sursaut de la bulle, qui accompagne le message.
+    choc = { v: -5, x: 0.06, angle: 0 };
+    relancer();
+    requestAnimationFrame(placerVoisins);
+    clearTimeout(minuteurToast);
+    minuteurToast = setTimeout(() => toast.classList.remove('visible'), 8000);
   };
-  hote.style.transition = 'transform .45s cubic-bezier(.34, 1.56, .64, 1)';
-  bulle.addEventListener('transitionend', placer);
 
-  // Glisser partout, sauf depuis un bouton ; un clic sans déplacement ouvre ou referme.
-  let depart = null;
-  bulle.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0 || e.target.closest('button')) return;
-    depart = { x: e.clientX, y: e.clientY, px: pos.x, py: pos.y, bouge: false };
-    bulle.setPointerCapture(e.pointerId);
-  });
-  bulle.addEventListener('pointermove', (e) => {
-    if (!depart) return;
-    const dx = e.clientX - depart.x;
-    const dy = e.clientY - depart.y;
-    if (!depart.bouge && Math.hypot(dx, dy) < 4) return;
-    depart.bouge = true;
-    // Sous le doigt, sans retard ; l'élan revient au lâcher.
-    hote.style.transition = 'none';
-    bulle.classList.add('glisse');
-    pos = { x: depart.px + dx, y: depart.py + dy };
-    placer();
-  });
-  bulle.addEventListener('pointerup', () => {
-    if (!depart) return;
-    bulle.classList.remove('glisse');
-    hote.style.transition = 'transform .45s cubic-bezier(.34, 1.56, .64, 1)';
-    if (depart.bouge) {
-      try {
-        localStorage.setItem(CLE, JSON.stringify(pos));
-      } catch {
-        // Stockage refusé : la position ne sera pas retenue.
-      }
-    } else {
-      etat.ouverte = !etat.ouverte;
-      rafraichir();
-      requestAnimationFrame(placer);
-    }
-    depart = null;
-  });
-  bAmbiance.addEventListener('click', () => file.push({ type: 'ambiance' }));
-  bTelecharger.addEventListener('click', () => file.push({ type: 'telecharger' }));
+  // ---- sponsors (SponsorBlock) et publicités ----
+  let passages = { id: null, liste: [], faits: new Set() };
+  const idVideo = () => new URLSearchParams(location.search).get('v') || null;
+  // Chaque passage n'est sauté qu'une fois : revenir en arrière, c'est l'avoir choisi.
+  // Jamais pendant une publicité ni en pause.
+  window.addEventListener('timeupdate', (e) => {
+    const v = e.target;
+    if (!etat.sponsors || !passages.liste.length || !v || v.tagName !== 'VIDEO') return;
+    if (v.paused || !v.closest('#movie_player') || document.querySelector('#movie_player.ad-showing')) return;
+    const t = v.currentTime;
+    const saut = passages.liste.find((p) => !passages.faits.has(p.id) && t >= p.debut && t < p.fin - 0.5);
+    if (!saut) return;
+    passages.faits.add(saut.id);
+    v.currentTime = Number.isFinite(v.duration) ? Math.min(saut.fin, v.duration) : saut.fin;
+    annoncer(saut.categorie === 'selfpromo' ? L.autopromo : L.sponsor, () => {
+      v.currentTime = saut.debut;
+    });
+  }, true);
 
+  // Le bouton « Ignorer » d'une publicité : YouTube refuse un clic fabriqué par
+  // script, le principal envoie un vrai clic à cet endroit (voir CLAUDE.md de
+  // Hublink). Un bouton, jamais un conteneur.
+  let pubSignalee = 0;
+  const boutonIgnorer = () => {
+    if (!etat.sponsors || !document.querySelector('#movie_player.ad-showing')) return null;
+    const b = document.querySelector('#movie_player button.ytp-skip-ad-button, #movie_player .ytp-ad-skip-button-modern, #movie_player .ytp-ad-skip-button');
+    if (!b || !b.checkVisibility || !b.checkVisibility()) return null;
+    const r = b.getBoundingClientRect();
+    if (!r.width || !r.height || performance.now() - pubSignalee < 1500) return null;
+    pubSignalee = performance.now();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  };
+
+  // ---- vie de la page ----
   const poser = () => {
     if (!hote.isConnected) document.documentElement.appendChild(hote);
     rafraichir();
-    placer();
   };
-  addEventListener('resize', placer);
+  addEventListener('resize', () => {
+    if (phase === 'repos') pos = maison();
+    peindre();
+  });
   document.addEventListener('fullscreenchange', rafraichir);
   // YouTube change de page sans recharger : boutons et thème se revérifient.
   setInterval(poser, 1000);
   poser();
+  peindre();
 
   window.__escaleBulle = {
-    prendre: () => file.splice(0),
+    prendre: () => ({ demandes: file.splice(0), video: idVideo(), pub: boutonIgnorer() }),
     ambiance: (actif) => {
       etat.ambiance = Boolean(actif);
       rafraichir();
+    },
+    sponsors: (actif) => {
+      etat.sponsors = Boolean(actif);
+      passages = { id: null, liste: [], faits: new Set() };
+      rafraichir();
+    },
+    passages: (id, liste) => {
+      if (id === idVideo()) passages = { id, liste: Array.isArray(liste) ? liste : [], faits: new Set() };
+    },
+    video: (e) => {
+      const avant = etat.video;
+      etat.video = e;
+      rafraichir();
+      if (e.etat === 'fini' && avant?.etat !== 'fini') {
+        pastille.classList.add('visible');
+        annoncer(L.termine, null);
+        setTimeout(() => pastille.classList.remove('visible'), 4000);
+      }
+      if (e.etat === 'echec' && avant?.etat !== 'echec') annoncer(e.erreur || L.echec, null);
     }
   };
 }
 
 const CODE = `(${scriptAmbiance.toString()})();`;
 const codeBulle = (libelles) => `(${scriptBulle.toString()})(${JSON.stringify(libelles)});`;
+const ia = (v) => (v ? 'true' : 'false');
 
 /** Pose (une fois par document) puis règle l'ambiance et la bulle d'une page YouTube. */
-function appliquer(wc, actif, libelles) {
+function appliquer(wc, reglages, libelles) {
   if (wc.isDestroyed() || !surYouTube(wc.getURL())) return;
-  const a = actif ? 'true' : 'false';
-  const code = `${CODE}\nwindow.__escaleAmbiance(${a});\n${libelles ? codeBulle(libelles) : ''}\nwindow.__escaleBulle && window.__escaleBulle.ambiance(${a});`;
+  const code = [
+    CODE,
+    `window.__escaleAmbiance(${ia(reglages.ambiance)});`,
+    libelles ? codeBulle(libelles) : '',
+    `if (window.__escaleBulle) { window.__escaleBulle.ambiance(${ia(reglages.ambiance)}); window.__escaleBulle.sponsors(${ia(reglages.sponsors)}); }`
+  ].join('\n');
   wc.executeJavaScriptInIsolatedWorld(MONDE, [{ code }]).catch(() => {});
 }
 
+/** Transmet à la bulle l'état d'un téléchargement lancé depuis elle. */
+function signalerVideo(wc, e) {
+  if (wc.isDestroyed()) return;
+  wc.executeJavaScriptInIsolatedWorld(MONDE, [{ code: `window.__escaleBulle && window.__escaleBulle.video(${JSON.stringify(e)});` }]).catch(() => {});
+}
+
 /**
- * À chaque page YouTube : ambiance et bulle suivent le réglage, et les
+ * À chaque page YouTube : ambiance et bulle suivent les réglages, et les
  * demandes de la bulle sont relevées tant que la page est sur YouTube.
- * `o` : { actif(), libelles(), basculer(), telecharger(wc) }.
+ * `o` : { reglages(), libelles(), basculer(cle), telecharger(wc, format), montrer(id), passages(idVideo) }.
  */
 function brancher(wc, o) {
-  wc.on('dom-ready', () => appliquer(wc, o.actif(), o.libelles()));
+  wc.on('dom-ready', () => appliquer(wc, o.reglages(), o.libelles()));
+  let videoVue = null;
   const releve = setInterval(async () => {
     if (wc.isDestroyed()) return clearInterval(releve);
     if (!surYouTube(wc.getURL())) return;
-    const demandes = await wc
-      .executeJavaScriptInIsolatedWorld(MONDE, [{ code: 'window.__escaleBulle ? window.__escaleBulle.prendre() : []' }])
-      .catch(() => []);
-    for (const d of Array.isArray(demandes) ? demandes : []) {
-      if (d?.type === 'ambiance') o.basculer();
-      if (d?.type === 'telecharger') o.telecharger(wc);
+    const r = await wc
+      .executeJavaScriptInIsolatedWorld(MONDE, [{ code: 'window.__escaleBulle ? window.__escaleBulle.prendre() : null' }])
+      .catch(() => null);
+    if (!r || wc.isDestroyed()) return;
+    for (const d of Array.isArray(r.demandes) ? r.demandes : []) {
+      if (d?.type === 'ambiance') o.basculer('ambiance');
+      if (d?.type === 'sponsors') o.basculer('sponsors');
+      if (d?.type === 'telecharger' && typeof d.format === 'string') o.telecharger(wc, d.format);
+      if (d?.type === 'montrer' && typeof d.id === 'string') o.montrer(d.id);
+    }
+    // Nouvelle vidéo : ses passages sponsorisés, si le réglage le veut.
+    if (r.video !== videoVue) {
+      videoVue = r.video;
+      if (videoVue && o.reglages().sponsors) {
+        const liste = await o.passages(videoVue);
+        if (!wc.isDestroyed()) {
+          wc.executeJavaScriptInIsolatedWorld(MONDE, [{ code: `window.__escaleBulle && window.__escaleBulle.passages(${JSON.stringify(videoVue)}, ${JSON.stringify(liste)});` }]).catch(() => {});
+        }
+      }
+    }
+    // « Ignorer » une publicité : un vrai clic, YouTube refusant ceux d'un script.
+    const p = r.pub;
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) {
+      wc.sendInputEvent({ type: 'mouseDown', x: p.x, y: p.y, button: 'left', clickCount: 1 });
+      wc.sendInputEvent({ type: 'mouseUp', x: p.x, y: p.y, button: 'left', clickCount: 1 });
     }
   }, 300);
 }
 
-module.exports = { brancher, appliquer, surYouTube };
+module.exports = { brancher, appliquer, signalerVideo, surYouTube };

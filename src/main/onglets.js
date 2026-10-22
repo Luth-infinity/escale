@@ -1,4 +1,4 @@
-const { WebContentsView, session: sessions } = require('electron');
+const { WebContentsView, session: sessions, shell } = require('electron');
 const etat = require('./etat');
 const ipc = require('./ipc');
 const extensions = require('./extensions');
@@ -7,6 +7,7 @@ const importFirefox = require('./import-firefox');
 const ua = require('./ua');
 const ambiance = require('./ambiance');
 const videos = require('./videos');
+const sponsors = require('./sponsors');
 const { t } = require('./i18n');
 const favicon = require('./favicon');
 const menucontextuel = require('./menucontextuel');
@@ -54,10 +55,10 @@ function init(options) {
   historique = options.historique;
   dev = options.dev;
   etat.ecouter(surDelta);
-  // Basculer l'ambiance prévient aussitôt les pages YouTube ouvertes.
+  // Basculer l'ambiance ou les sponsors prévient aussitôt les pages YouTube ouvertes.
   etat.ecouter((d) => {
-    if (d.type !== 'settings:changed' || !('ambiance' in d.patch)) return;
-    for (const vue of vues.values()) ambiance.appliquer(vue.webContents, d.patch.ambiance);
+    if (d.type !== 'settings:changed' || !('ambiance' in d.patch || 'sponsors' in d.patch)) return;
+    for (const vue of vues.values()) ambiance.appliquer(vue.webContents, etat.reglages());
   });
   extensions.definirPont({
     creerOnglet: async (details, ses) => {
@@ -162,16 +163,45 @@ function hote(url) {
   }
 }
 
+// Les textes de la bulle YouTube, dans la langue d'Escale.
+const libellesBulle = () => ({
+  ambiance: t('Ambiance'),
+  sponsors: t('Passer sponsors et pubs'),
+  telecharger: t('Télécharger'),
+  afficher: t('Afficher dans le dossier'),
+  revenir: t('Revenir'),
+  preparation: t('Préparation…'),
+  enCours: t('Téléchargement'),
+  termine: t('Téléchargement terminé'),
+  echec: t('Le téléchargement a échoué'),
+  sponsor: t('Sponsor passé'),
+  autopromo: t('Autopromotion passée'),
+  formats: videos.LIBELLES.map((l) => (l ? [l[0], t(l[1])] : [null, '']))
+});
+
 function cabler(vue, id) {
   const wc = vue.webContents;
   securite.brancherPage(wc, { fenetre: () => fenetre, exceptionsHttp });
   importFirefox.surveillerRefusGoogle(wc);
   ua.suivre(wc);
   ambiance.brancher(wc, {
-    actif: () => etat.reglages().ambiance,
-    libelles: () => ({ ambiance: t('Ambiance'), telecharger: t('Télécharger') }),
-    basculer: () => etat.regler({ ambiance: !etat.reglages().ambiance }),
-    telecharger: (page) => videos.ouvrirMenu(page, fenetre, (e) => ipc.emettre({ type: 'video:etat', ...e }))
+    reglages: () => etat.reglages(),
+    libelles: libellesBulle,
+    basculer: (cle) => etat.regler({ [cle]: !etat.reglages()[cle] }),
+    // La progression va à la bulle qui l'a demandée et au bas de la barre.
+    telecharger: (page, format) =>
+      videos.telecharger(
+        { url: page.getURL(), format, titre: page.getTitle().replace(/ - YouTube$/, ''), session: page.session },
+        (e) => {
+          ipc.emettre({ type: 'video:etat', ...e });
+          ambiance.signalerVideo(page, e);
+        }
+      ),
+    montrer: (idVideo) => {
+      const chemin = videos.cheminFini(idVideo);
+      if (chemin) shell.showItemInFolder(chemin);
+    },
+    passages: (idVideo) => sponsors.passages(idVideo)
   });
 
   wc.on('page-title-updated', (_e, titre) => meta(id, { titre }));
