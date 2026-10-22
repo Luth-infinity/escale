@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AnimatePresence } from 'motion/react';
-import { agir, demarrer, lireEtat, useCommande, useEtat, useEtatPret } from './etat';
+import { agir, demarrer, lireEtat, useCommande, useEtat, useEtatPret, useQuestion } from './etat';
 import { teintes, useSyncedTheme } from './lib/theme';
 import { BarreLaterale } from './components/BarreLaterale';
 import { TransitionPage } from './components/TransitionPage';
@@ -8,6 +8,7 @@ import { BarreCommande } from './components/BarreCommande';
 import { BarreRecherche } from './components/BarreRecherche';
 import { Reglages } from './components/Reglages';
 import { Nouveautes } from './components/Nouveautes';
+import { Dialogue } from './components/Dialogue';
 import { setLanguage } from './lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,7 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale
   commande: Commande; fermerCommande: () => void; recherche: boolean; fermerRecherche: () => void; modale: Modale; fermerModale: () => void;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
+  const question = useQuestion();
   React.useLayoutEffect(() => {
     const el = ref.current!;
     let frame = 0;
@@ -54,9 +56,11 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale
         <AnimatePresence>{recherche && <BarreRecherche fermer={fermerRecherche} />}</AnimatePresence>
         <div ref={ref} id="zone-page" className="relative min-h-0 w-full flex-1 rounded-[10px]">
           <TransitionPage />
-          {commande && <BarreCommande nouvelOnglet={commande.nouvelOnglet} depuis={commande.depuis} fermer={fermerCommande} />}
-          {!commande && modale?.type === 'reglages' && <Reglages fermer={fermerModale} />}
-          {!commande && modale?.type === 'nouveautes' && <Nouveautes version={modale.version} points={modale.points} fermer={fermerModale} />}
+          {/* Une question en attente passe devant tout ; ce qu'elle masque revient après. */}
+          {question && <Dialogue key={question.id} question={question} />}
+          {!question && commande && <BarreCommande nouvelOnglet={commande.nouvelOnglet} depuis={commande.depuis} fermer={fermerCommande} />}
+          {!question && !commande && modale?.type === 'reglages' && <Reglages fermer={fermerModale} />}
+          {!question && !commande && modale?.type === 'nouveautes' && <Nouveautes version={modale.version} points={modale.points} fermer={fermerModale} />}
         </div>
       </div>
     </main>

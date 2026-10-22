@@ -34,7 +34,14 @@ export type Delta =
   | { type: 'settings:changed'; patch: Partial<Reglages> }
   | { type: 'ui:commande'; nom: string; id?: string; t?: number }
   | { type: 'page:transition'; de: string; vers: string | null }
-  | { type: 'update:available'; version: string; url: string; page: string; notes: string };
+  | { type: 'update:available'; version: string; url: string; page: string; notes: string }
+  | ({ type: 'dialogue:ouvrir' } & Question);
+
+/** Une question du process principal, posée en modale (src/main/dialogue.js). */
+export type Question = {
+  id: string; titre: string; detail: string; points: string[]; avertissement: string;
+  annuler: string; confirmer: string; ton: 'normal' | 'danger';
+};
 
 declare module 'react' {
   namespace JSX {

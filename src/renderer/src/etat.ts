@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Delta, Etat, Nav } from './types';
+import type { Delta, Etat, Nav, Question } from './types';
 
 /**
  * L'état côté shell : un état complet au démarrage, puis des deltas. Chaque
@@ -8,9 +8,9 @@ import type { Delta, Etat, Nav } from './types';
  */
 type Vivant = { vivant: boolean; son: boolean };
 type MiseAJour = { version: string; url: string };
-type Store = { etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivant>; maj: MiseAJour | null };
+type Store = { etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivant>; maj: MiseAJour | null; questions: Question[] };
 
-let store: Store = { etat: null, nav: null, vivants: {}, maj: null };
+let store: Store = { etat: null, nav: null, vivants: {}, maj: null, questions: [] };
 const ecouteurs = new Set<() => void>();
 const commandes = new Set<(nom: string, id?: string, t?: number) => void>();
 const transitions = new Set<(de: string, vers: string | null) => void>();
@@ -64,6 +64,10 @@ export async function demarrer() {
     }
     if (d.type === 'tab:etat') return publier({ ...store, vivants: { ...store.vivants, [d.id]: { vivant: d.vivant, son: d.son } } });
     if (d.type === 'update:available') return publier({ ...store, maj: { version: d.version, url: d.url } });
+    if (d.type === 'dialogue:ouvrir') {
+      const { type: _t, ...q } = d;
+      return publier({ ...store, questions: [...store.questions, q] });
+    }
     if (d.type === 'page:transition') {
       for (const f of transitions) f(d.de, d.vers);
       return;
@@ -86,6 +90,12 @@ export function useEtat<T>(selection: (e: Etat) => T): T {
   return React.useSyncExternalStore(abonner, () => selection(store.etat as Etat));
 }
 export const useMiseAJour = () => React.useSyncExternalStore(abonner, () => store.maj);
+/** La question en tête de file : une seule modale à la fois, les suivantes attendent. */
+export const useQuestion = () => React.useSyncExternalStore(abonner, () => store.questions[0] ?? null);
+export function repondre(id: string, oui: boolean) {
+  publier({ ...store, questions: store.questions.filter((q) => q.id !== id) });
+  agir('dialogue.repondre', { id, oui });
+}
 export const useNav = () => React.useSyncExternalStore(abonner, () => store.nav);
 export const useVivant = (id: string) => React.useSyncExternalStore(abonner, () => store.vivants[id]);
 export const lireEtat = () => store.etat as Etat;

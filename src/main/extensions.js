@@ -1,4 +1,5 @@
-const { app, dialog, BrowserWindow } = require('electron');
+const { app } = require('electron');
+const dialogue = require('./dialogue');
 const path = require('node:path');
 const crx = require('./crx');
 const P = require('./permissions-ext');
@@ -57,24 +58,18 @@ function definirPont(p) {
   pont = p;
 }
 
-async function demanderAccord({ localizedName, manifest, browserWindow }) {
-  const peut = P.decrire(manifest).map((p) => `• ${t(p)}`);
+async function demanderAccord({ localizedName, manifest }) {
+  const peut = P.decrire(manifest).map((p) => t(p));
   const absentes = P.manquantes(manifest);
-  const detail = [
-    peut.length ? `${t('Elle pourra :')}\n${peut.join('\n')}` : t('Elle ne demande aucune permission sensible.'),
-    absentes.length ? t('Ne fonctionnera pas entièrement dans Escale : {api}', { api: absentes.join(', ') }) : ''
-  ].filter(Boolean).join('\n\n');
-  const parent = browserWindow || BrowserWindow.getFocusedWindow() || pont?.fenetre();
-  const { response } = await dialog.showMessageBox(parent, {
-    type: 'question',
-    message: t('Ajouter « {nom} » ?', { nom: localizedName }),
-    detail,
-    buttons: [t('Annuler'), t("Ajouter l'extension")],
-    defaultId: 0,
-    cancelId: 0,
-    noLink: true
+  const oui = await dialogue.demander({
+    titre: t('Ajouter « {nom} » ?', { nom: localizedName }),
+    detail: peut.length ? t('Elle pourra :') : t('Elle ne demande aucune permission sensible.'),
+    points: peut,
+    avertissement: absentes.length ? t('Ne fonctionnera pas entièrement dans Escale : {api}', { api: absentes.join(', ') }) : '',
+    annuler: t('Annuler'),
+    confirmer: t("Ajouter l'extension")
   });
-  return { action: response === 1 ? 'allow' : 'deny' };
+  return { action: oui ? 'allow' : 'deny' };
 }
 
 // Une extension chargée (installée ou mise à jour) dans un espace l'est dans

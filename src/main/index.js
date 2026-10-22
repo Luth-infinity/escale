@@ -15,6 +15,7 @@ const { ACTIONS } = require('./actions');
 const suggestions = require('./suggestions');
 const updates = require('./updates');
 const i18n = require('./i18n');
+const dialogue = require('./dialogue');
 
 // Le mode dev se déduit de l'empaquetage seul, jamais d'un argument.
 const isDev = !app.isPackaged;
@@ -70,6 +71,7 @@ function creerFenetre() {
     }
   });
   ipc.definirShell(win, URL_SHELL);
+  dialogue.definirFenetre(win);
 
   // Le shell ne navigue jamais et n'ouvre jamais de fenêtre.
   win.webContents.on('will-navigate', (e) => e.preventDefault());

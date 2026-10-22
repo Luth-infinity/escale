@@ -339,6 +339,8 @@ function zone(rect) {
 /** Une modale du shell est ouverte : la page native passerait par-dessus. */
 function setOverlay(actif) {
   overlay = Boolean(actif);
+  // Le clavier va à la modale (Échap, Entrée), pas à la page qu'elle recouvre.
+  if (overlay && fenetre && !fenetre.isDestroyed()) fenetre.webContents.focus();
   const vue = courant ? vues.get(courant) : null;
   if (!vue) return;
   vue.setVisible(!overlay);
