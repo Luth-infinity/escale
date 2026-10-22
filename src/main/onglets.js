@@ -55,11 +55,11 @@ function init(options) {
     },
     activerOnglet: (wc) => {
       const id = idDe(wc);
-      if (id) etat.appliquer('activer', id);
+      if (existe(id)) etat.appliquer('activer', id);
     },
     fermerOnglet: (wc) => {
       const id = idDe(wc);
-      if (id) etat.appliquer('fermerOnglet', id);
+      if (existe(id)) etat.appliquer('fermerOnglet', id);
     },
     fenetre: () => fenetre
   });
@@ -67,6 +67,8 @@ function init(options) {
 }
 
 const partitionDe = (ses) => etat.lire().espaces.find((e) => sessions.fromPartition(e.partition) === ses)?.partition;
+
+const existe = (id) => Boolean(id) && etat.lire().onglets.some((o) => o.id === id);
 
 function idDe(wc) {
   for (const [id, v] of vues) if (v.webContents === wc) return id;
@@ -264,9 +266,11 @@ function detruire(id) {
   if (!vue) return;
   if (courant === id) masquer();
   meta.oublier(id);
+  // Retirée de la table AVANT la fermeture : la lib d'extensions rappelle le
+  // pont pendant close(), et l'onglet ne doit plus y être trouvé.
+  vues.delete(id);
   extensions.retirerOnglet(vue.webContents);
   vue.webContents.close();
-  vues.delete(id);
   captures.delete(id);
   joueDuSon.delete(id);
 }

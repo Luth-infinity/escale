@@ -8,6 +8,8 @@ const etat = require('./etat');
 const historique = require('./historique');
 const extensions = require('./extensions');
 const onglets = require('./onglets');
+const menu = require('./menu');
+const { ACTIONS } = require('./actions');
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const DEV_SERVER = 'http://localhost:5373/';
@@ -23,6 +25,10 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'escale', privileges: { standard
 app.userAgentFallback = CHROME_UA;
 
 let win = null;
+const contexte = { etat, onglets, fermes: [] };
+const agir = (nom, payload) => ACTIONS[nom].fn(contexte, payload);
+const ui = (nom) => ipc.emettre({ type: 'ui:commande', nom });
+const reconstruireMenu = () => menu.construire({ agir, ui, onglets, etat });
 const dossierDonnees = () => app.getPath('userData');
 
 function creerFenetre() {
@@ -50,6 +56,16 @@ function creerFenetre() {
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   onglets.init({ fenetre: win, historique: historique.ouvrir(path.join(dossierDonnees(), 'history.sqlite')), dev: isDev });
+  // Gestes : balayage du trackpad (macOS, selon le réglage système) et boutons
+  // précédent / suivant de la souris (Windows).
+  win.on('swipe', (_e, sens) => {
+    if (sens === 'left') agir('nav.precedent', {});
+    if (sens === 'right') agir('nav.suivant', {});
+  });
+  win.on('app-command', (_e, cmd) => {
+    if (cmd === 'browser-backward') agir('nav.precedent', {});
+    if (cmd === 'browser-forward') agir('nav.suivant', {});
+  });
   win.once('ready-to-show', () => win.show());
   win.loadURL(URL_SHELL);
   const actif = etat.lire().ongletActif;
@@ -79,10 +95,21 @@ app.whenReady().then(() => {
   etat.init(dossierDonnees());
   extensions.brancherShell(session.defaultSession);
   ipc.handle('etat:initial', { type: 'objet', champs: {} }, () => etat.lire());
+  for (const [nom, { schema, fn }] of Object.entries(ACTIONS)) ipc.action(nom, schema, (p) => fn(contexte, p));
+  reconstruireMenu();
+  // Le menu porte la liste des espaces (Ctrl+1…9) : il suit leurs changements.
+  etat.ecouter((d) => {
+    if (d.type.startsWith('space:')) reconstruireMenu();
+  });
+  // Les onglets du jour inactifs se ferment d'eux-mêmes (réglage, 12 h par défaut).
+  const fermerInactifs = () =>
+    etat.appliquer('fermerInactifs', Date.now(), (etat.reglages().fermetureAutoHeures || 0) * 3600e3);
+  fermerInactifs();
+  setInterval(fermerInactifs, 10 * 60e3).unref();
   creerFenetre();
   // Banc de sécurité (scripts/test-securite.js) : jamais dans l'app empaquetée.
   if (!app.isPackaged && process.argv.includes('--test-securite')) {
-    require(path.join(__dirname, '../../scripts/securite-autotest.js'))({ fenetre: win, onglets, etat, ipc });
+    require(path.join(__dirname, '../../scripts/securite-autotest.js'))({ fenetre: win, onglets, etat, ipc, agir });
   }
 });
 

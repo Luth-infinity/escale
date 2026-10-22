@@ -5,7 +5,7 @@ const path = require('node:path');
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 const avant = (ms, p, nom) => Promise.race([p, attendre(ms).then(() => { throw new Error(`délai dépassé : ${nom}`); })]);
 
-module.exports = async function autotest({ fenetre, onglets, etat }) {
+module.exports = async function autotest({ fenetre, onglets, etat, agir }) {
   const resultats = [];
   const verifier = async (nom, fn) => {
     try {
@@ -124,6 +124,31 @@ module.exports = async function autotest({ fenetre, onglets, etat }) {
     const fond = await w3.executeJavaScript("getComputedStyle(document.documentElement).backgroundColor + ' ' + !!document.querySelector('style.darkreader')");
     if (!/true$/.test(fond)) throw new Error(fond);
     return `${verifications} vérification(s), ${fond}`;
+  });
+
+  await verifier('le zoom est mémorisé par site et réappliqué', async () => {
+    const { id } = await nouvelOnglet('https://example.com/?zoom');
+    etat.appliquer('activer', id);
+    await attendre(200);
+    agir('page.zoom', { sens: 'plus' });
+    if (etat.reglages().zoom['example.com'] !== 1.1) throw new Error(JSON.stringify(etat.reglages().zoom));
+    const { wc: w4 } = await nouvelOnglet('https://example.com/?zoom2');
+    await attendre(300);
+    const f = w4.getZoomFactor();
+    agir('page.zoom', { sens: 'normal' });
+    if (Math.abs(f - 1.1) > 0.001) throw new Error(`facteur ${f}`);
+    if ('example.com' in etat.reglages().zoom) throw new Error('zoom normal non oublié');
+    return `facteur ${f}`;
+  });
+
+  await verifier('fermer puis restaurer rouvre la même adresse', async () => {
+    const { id } = await nouvelOnglet('https://example.com/?restaurer');
+    agir('onglet.fermer', { id });
+    if (etat.lire().onglets.some((o) => o.id === id)) throw new Error('pas fermé');
+    agir('onglet.restaurer', {});
+    const o = etat.lire().onglets.find((x) => x.url === 'https://example.com/?restaurer');
+    if (!o || etat.lire().ongletActif !== o.id) throw new Error('pas restauré');
+    return 'ok';
   });
 
   const echecs = resultats.filter((r) => !r.ok);

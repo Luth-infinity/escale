@@ -15,6 +15,7 @@ const REGLAGES = {
   moteur: 'google',
   langue: 'system',
   theme: 'system',
+  barreRepliee: false,
   zoom: {} // hôte → facteur
 };
 
