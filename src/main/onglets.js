@@ -115,8 +115,13 @@ async function assurerVue(id) {
   // Une autre demande a pu créer la vue pendant l'attente de la session.
   if (vues.has(id)) return vues.get(id);
   if (!etat.lire().onglets.some((o) => o.id === id)) return null;
+  // nodeIntegrationInSubFrames : malgré son nom, il ne donne pas Node aux cadres
+  // (sandbox) ; il y fait tourner le preload de session d'electron-chrome-extensions.
+  // Sans lui, un cadre d'extension posé dans une page (le menu de remplissage
+  // d'un gestionnaire de mots de passe) n'a que les API natives d'Electron :
+  // chrome.tabs.getCurrent, permissions, windows… y manquent.
   const vue = new WebContentsView({
-    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, spellcheck: true }
+    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true }
   });
   vue.setBorderRadius(RAYON);
   vues.set(id, vue);
