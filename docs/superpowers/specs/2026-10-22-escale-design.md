@@ -169,7 +169,7 @@ Les lots sont livrés dans cet ordre. Le lot 1 contient les trois priorités.
 
 **Risques** :
 - La dernière version de la bibliothèque date de **juillet 2025**. Sa compatibilité avec Electron 41 n'est **pas vérifiée**. C'est la **première tâche du plan** : un spike d'une demi-journée qui charge uBlock Origin Lite, Bitwarden et Dark Reader. Si ça casse, on corrige dans un fork local ou on implémente les API nous-mêmes. Le spike chiffre ce coût.
-- **Licence** : la bibliothèque est en **GPL‑3** (ou licence payante « patron »). Escale sera donc publié en **GPL‑3**, et non en MIT comme Hublink. C'est sans conséquence pour une app gratuite et open source.
+- **Licence** : la bibliothèque est en **GPL‑3** (ou licence payante « patron »). **Décision du 22/10 : reportée** ; priorité à un navigateur qui marche. À trancher avant la première release publique, en même temps que la signature (§9.10). Tant que rien n'est distribué, la GPL n'impose rien.
 
 ## 8. Direction artistique
 
@@ -316,5 +316,5 @@ Le risque n°1 d'un navigateur Electron, c'est un **Chromium en retard** : chaqu
 ## 11. Identité du dépôt
 
 - Dépôt `Luth-infinity/escale`. Commits signés `Luth <57181738+Luth-infinity@users.noreply.github.com>`, **sans** trailer d'attribution IA, sans mention Posidea et sans nom réel.
-- `appId: com.luthinfinity.escale`, `Copyright (c) 2026 Luth`, licence GPL‑3.0.
+- `appId: com.luthinfinity.escale`, `Copyright (c) 2026 Luth`. Licence à choisir avant la première release publique (§7).
 - Homonyme existant : `kndpt/escale-browser` (navigateur WebKit, petit projet). Le nom est conservé, à la demande de l'utilisateur.
