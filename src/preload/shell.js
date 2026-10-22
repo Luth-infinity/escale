@@ -1,4 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
+const { injectBrowserAction } = require('electron-chrome-extensions/browser-action');
+
+// La barre d'icônes d'extensions (<browser-action-list>), fournie par la lib.
+injectBrowserAction();
 
 // L'unique pont entre le shell et le process principal : trois fonctions, pas
 // d'ipcRenderer brut. Chaque action est vérifiée (liste blanche + schéma) côté

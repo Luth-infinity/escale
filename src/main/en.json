@@ -1,1 +1,22 @@
-{}
+{
+  "Elle pourra :": "It will be able to:",
+  "Elle ne demande aucune permission sensible.": "It asks for no sensitive permission.",
+  "Ne fonctionnera pas entièrement dans Escale : {api}": "Will not fully work in Escale: {api}",
+  "Ajouter « {nom} » ?": "Add “{nom}”?",
+  "Annuler": "Cancel",
+  "Ajouter l'extension": "Add extension",
+  "Lire et modifier toutes vos données sur tous les sites": "Read and change all your data on all websites",
+  "Lire votre historique de navigation": "Read your browsing history",
+  "Lire la liste de vos sites les plus visités": "Read a list of your most frequently visited websites",
+  "Lire et modifier vos favoris": "Read and change your bookmarks",
+  "Lire les données que vous copiez et collez": "Read data you copy and paste",
+  "Modifier les données que vous copiez et collez": "Modify data you copy and paste",
+  "Lire et modifier vos cookies": "Read and change your cookies",
+  "Gérer vos téléchargements": "Manage your downloads",
+  "Connaître votre position": "Detect your physical location",
+  "Gérer vos applications, extensions et thèmes": "Manage your apps, extensions, and themes",
+  "Communiquer avec des applications installées sur l’ordinateur": "Communicate with cooperating native applications",
+  "Afficher des notifications": "Display notifications",
+  "Modifier vos paramètres de confidentialité": "Change your privacy-related settings",
+  "Bloquer du contenu sur toutes les pages": "Block content on any page"
+}

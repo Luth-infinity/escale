@@ -7,13 +7,14 @@
   "author": "Luth",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-port 5373 && electron . --dev\"",
-    "build": "vite build",
+    "dev": "npm run build:preload && concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-port 5373 && electron . --dev\"",
+    "build": "npm run build:preload && vite build",
     "start": "npm run build && electron .",
     "test": "node --test \"test/**/*.test.js\"",
     "typecheck": "tsc --noEmit",
     "dist:mac": "npm run build && electron-builder --mac",
-    "dist:win": "npm run build && electron-builder --win"
+    "dist:win": "npm run build && electron-builder --win",
+    "build:preload": "vite build --config vite.preload.mts"
   },
   "devDependencies": {
     "@electron/fuses": "^2.0.0",

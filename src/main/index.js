@@ -1,9 +1,10 @@
-const { app, BrowserWindow, nativeTheme } = require('electron');
+const { app, BrowserWindow, nativeTheme, session } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { CHROME_UA } = require('./ua');
 const ipc = require('./ipc');
 const store = require('./store');
+const extensions = require('./extensions');
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const DEV_SERVER = 'http://localhost:5373/';
@@ -30,7 +31,7 @@ function creerFenetre() {
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#16171a' : '#fcfcfd',
     webPreferences: {
-      preload: path.join(__dirname, '../preload/shell.js'),
+      preload: path.join(__dirname, '../preload/dist/shell.js'),
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
@@ -68,6 +69,7 @@ app.on('second-instance', () => {
 app.whenReady().then(() => {
   app.configureHostResolver({ secureDnsMode: 'automatic' });
   etat = store.charger(dossierDonnees());
+  extensions.brancherShell(session.defaultSession);
   ipc.handle('etat:initial', { type: 'objet', champs: {} }, () => etat);
   creerFenetre();
 });
