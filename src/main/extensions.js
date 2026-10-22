@@ -84,6 +84,83 @@ function propager(ext, depuis) {
   }
 }
 
+// Sous Windows avec un affichage mis à l'échelle (125 %…), la fenêtre du popup
+// n'obtient pas la taille que la lib lui donne : Dashlane (350 × 561) s'ouvrait
+// en 323 × 548, coupé à droite et en bas. On reprend le dimensionnement : la
+// taille préférée de Chromium, corrigée d'après ce que la page voit vraiment,
+// une passe à la fois.
+const LIMITE_POPUP = { width: 800, height: 600 };
+
+// Le placement de la lib (updatePosition) réapplique les dimensions extérieures,
+// que Windows rogne de son cadre invisible : on place sans toucher à la taille.
+function placer(popup) {
+  const win = popup.browserWindow;
+  const parent = popup.parent;
+  if (!win || !parent || parent.isDestroyed()) return;
+  const fen = parent.getBounds();
+  const barre = fen.height - parent.getContentBounds().height;
+  const vue = win.getBounds();
+  const a = popup.anchorRect;
+  let x = fen.x + a.x + a.width - vue.width;
+  let y = fen.y + barre + a.y + a.height + 5;
+  if (popup.alignment?.includes('right')) x = fen.x + a.x;
+  if (popup.alignment?.includes('top')) y = fen.y + barre - vue.height + a.y - 5;
+  win.setPosition(Math.floor(x), Math.floor(y));
+}
+function ajusterPopup(popup) {
+  const win = popup.browserWindow;
+  if (!win) return;
+  win.webContents.off('preferred-size-changed', popup.updatePreferredSize);
+  // Non redimensionnable, la fenêtre est bornée à sa taille (minimum = maximum)
+  // et Windows la rogne de son cadre à chaque reverrouillage : on la laisse
+  // libre. Elle se ferme de toute façon dès qu'elle perd le focus.
+  win.setResizable(true);
+  const lire = () =>
+    win.webContents
+      .executeJavaScript('[document.documentElement.scrollWidth, document.documentElement.scrollHeight, innerWidth, innerHeight]')
+      .catch(() => null);
+  let enCours = false;
+  let encore = false;
+  let prefere = { width: 0, height: 0 };
+  const dimensionner = async (_e, taille) => {
+    if (taille) prefere = taille;
+    if (enCours) {
+      encore = true;
+      return;
+    }
+    enCours = true;
+    try {
+      for (let passe = 0; passe < 4; passe++) {
+        if (popup.isDestroyed() || win.isDestroyed()) return;
+        const m = await lire();
+        if (!m || popup.isDestroyed() || win.isDestroyed()) return;
+        const [w, h, vw, vh] = m;
+        // La taille préférée de Chromium est juste ; la page la complète si elle
+        // déborde encore (arrondis de l'échelle).
+        const voulu = {
+          width: Math.min(Math.max(prefere.width, w > vw ? w : 0, 1), LIMITE_POPUP.width),
+          height: Math.min(Math.max(prefere.height, h > vh ? h : 0, 1), LIMITE_POPUP.height)
+        };
+        if (vw === voulu.width && vh === voulu.height) break;
+        const [cw, ch] = win.getContentSize();
+        win.setContentSize(Math.max(1, cw + voulu.width - vw), Math.max(1, ch + voulu.height - vh));
+        await new Promise((r) => setTimeout(r, 30));
+      }
+      if (popup.isDestroyed() || win.isDestroyed()) return;
+      placer(popup);
+      if (popup.hidden) popup.show();
+    } finally {
+      enCours = false;
+      if (encore) {
+        encore = false;
+        dimensionner();
+      }
+    }
+  };
+  win.webContents.on('preferred-size-changed', dimensionner);
+  win.webContents.on('did-finish-load', dimensionner);
+}
+
 /** À appeler avant le premier loadURL d'une session. */
 async function brancherSession(ses, { prive = false } = {}) {
   if (branchees.has(ses)) return;
@@ -99,6 +176,7 @@ async function brancherSession(ses, { prive = false } = {}) {
       return pont.fenetre();
     }
   });
+  ece.on('browser-action-popup-created', ajusterPopup);
   branchees.set(ses, { ece, prive });
   // Une seule session vérifie les mises à jour : elles écrivent toutes dans le
   // même dossier, et la propagation met les autres à niveau.
