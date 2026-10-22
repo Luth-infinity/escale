@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Les gris du shell d'Escale, à peine froids, et son vert d'eau : réservé au
+     logo, aux appels à télécharger et à ce qui est actif. */
+  --color-page: oklch(0.975 0.002 265);
+  --color-card: #ffffff;
+  --color-ink: oklch(0.2 0.012 265);
+  --color-ink-soft: oklch(0.5 0.014 265);
+  --color-line: oklch(0.91 0.004 265);
+  --color-escale: oklch(0.56 0.1 190);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: var(--color-escale);
+    color: #fff;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-escale);
+    outline-offset: 2px;
+  }
+}
+
+@utility headline {
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+/* ---- La démo : mêmes dosages que le shell de l'app (index.css d'Escale) ---- */
+
+/* Enregistrée pour passer en fondu d'un espace à l'autre : une propriété
+   personnalisée ordinaire ne s'anime pas. */
+@property --teinte {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #3a7f6b;
+}
+.demo-fenetre {
+  background: color-mix(in oklab, var(--teinte) 10%, oklch(0.991 0.001 265));
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--teinte) 22%, var(--color-line)),
+    0 30px 70px -30px rgb(20 24 30 / 0.3);
+  transition: --teinte 250ms ease;
+}
+.demo-page {
+  background: #fff;
+  border: 1px solid color-mix(in oklab, var(--teinte) 42%, oklch(0.935 0.003 265));
+}
+.demo-epingle {
+  background: color-mix(in oklab, var(--teinte) 6%, #fff);
+}
+.demo-onglet,
+.demo-espace {
+  transition: background-color 120ms ease;
+}
+.demo-onglet:hover,
+.demo-espace:hover {
+  background: rgb(0 0 0 / 0.05);
+}
+.demo-onglet[aria-pressed='true'] {
+  background: #fff;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--teinte) 30%, transparent);
+}
+.demo-espace[aria-pressed='true'] {
+  background: rgb(0 0 0 / 0.08);
+}
+/* La page change en fondu, comme la capture qui couvre la vue native. */
+.demo-contenu {
+  animation: fondu 180ms ease-out;
+}
+@keyframes fondu {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .demo-fenetre {
+    transition-duration: 100ms;
+  }
+  .demo-contenu {
+    animation-duration: 100ms;
+  }
+}
+
+/* Le visiteur ne télécharge qu'une plateforme : le script du <head> pose
+   `data-os`, on masque l'autre bouton. Inconnue (ou JS coupé) : les deux. */
+html[data-os='mac'] [data-cta='win'],
+html[data-os='win'] [data-cta='mac'] {
+  display: none;
+}
+[data-cta-autre] {
+  display: none;
+}
+html[data-os='mac'] [data-cta-autre='mac'],
+html[data-os='win'] [data-cta-autre='win'] {
+  display: inline;
+}

@@ -24,7 +24,7 @@ mac:
   category: public.app-category.productivity
   target:
     - target: dmg
-      arch: [arm64]
+      arch: [arm64, x64]
   darkModeSupport: true
   # Signature ad hoc tant que la signature Developer ID est reportée (spec §9.10).
   # Runtime renforcé gardé ; en ad hoc il exige disable-library-validation, sinon
