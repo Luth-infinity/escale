@@ -40,6 +40,16 @@ const ui = (nom, id) => ipc.emettre({ type: 'ui:commande', nom, t: Date.now(), .
 const reconstruireMenu = () => menu.construire({ agir, ui, onglets, etat });
 const dossierDonnees = () => app.getPath('userData');
 
+// Hors macOS, la barre de titre masquée emporte les boutons de la fenêtre : on
+// les rend en surimpression (Windows Controls Overlay), sur fond transparent
+// pour laisser passer la teinte de l'espace. Hauteur reprise par le shell.
+const HAUTEUR_BOUTONS = 36;
+const boutonsFenetre = () => ({
+  color: '#00000000',
+  symbolColor: nativeTheme.shouldUseDarkColors ? '#eef0f3' : '#2b2e35',
+  height: HAUTEUR_BOUTONS
+});
+
 function creerFenetre() {
   win = new BrowserWindow({
     width: 1280,
@@ -49,6 +59,7 @@ function creerFenetre() {
     show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     trafficLightPosition: { x: 16, y: 16 },
+    ...(process.platform === 'darwin' ? {} : { titleBarOverlay: boutonsFenetre() }),
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#16171a' : '#fcfcfd',
     webPreferences: {
       preload: path.join(__dirname, '../preload/dist/shell.js'),
@@ -82,6 +93,12 @@ function creerFenetre() {
     if (process.platform === 'darwin') win.setWindowButtonVisibility(!etat.reglages().barreRepliee);
   };
   feux();
+  // Les symboles des boutons suivent le thème clair / sombre.
+  if (process.platform !== 'darwin') {
+    nativeTheme.on('updated', () => {
+      if (!win.isDestroyed()) win.setTitleBarOverlay(boutonsFenetre());
+    });
+  }
   etat.ecouter((d) => {
     if (d.type === 'settings:changed' && 'barreRepliee' in d.patch) feux();
   });

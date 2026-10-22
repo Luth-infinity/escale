@@ -9,6 +9,7 @@ import { BarreRecherche } from './components/BarreRecherche';
 import { Reglages } from './components/Reglages';
 import { Nouveautes } from './components/Nouveautes';
 import { setLanguage } from './lib/i18n';
+import { cn } from '@/lib/utils';
 
 /**
  * Le shell : la barre latérale à gauche, la page encadrée à droite. La page
@@ -43,9 +44,13 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale
     };
   }, []);
   // La bordure dessine le cadre ; la vue native est posée dans son rectangle.
+  // Hors macOS, le haut laisse la place aux boutons de la fenêtre (36 px, cf.
+  // HAUTEUR_BOUTONS dans le principal) et sert de poignée de déplacement.
+  const mac = window.escale.plateforme === 'darwin';
   return (
-    <main className="relative min-w-0 flex-1 p-2 pl-0">
-      <div className="flex h-full w-full flex-col rounded-[11px] border border-shell-border bg-shell-raised p-px">
+    <main className={cn('relative flex min-w-0 flex-1 flex-col p-2 pl-0', !mac && 'pt-0')}>
+      {!mac && <div className="drag h-9 w-full shrink-0" />}
+      <div className="flex min-h-0 w-full flex-1 flex-col rounded-[11px] border border-shell-border bg-shell-raised p-px">
         <AnimatePresence>{recherche && <BarreRecherche fermer={fermerRecherche} />}</AnimatePresence>
         <div ref={ref} id="zone-page" className="relative min-h-0 w-full flex-1 rounded-[10px]">
           <TransitionPage />
