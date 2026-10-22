@@ -80,6 +80,47 @@ async function verifier({ fenetre, onglets, etat, agir, sortie }) {
   agir('barre.replier', { oui: false });
   await attendre(500);
 
+  // 5. Barre de commande : latence à l'ouverture, saisie, Entrée → nouvel onglet.
+  const ipc = require('../src/main/ipc');
+  let latence = null;
+  const ecoute = (e) => {
+    const m = /barre de commande : (\d+) ms/.exec(e.message || '');
+    if (m) latence = Number(m[1]);
+  };
+  shell.on('console-message', ecoute);
+  ipc.emettre({ type: 'ui:commande', nom: 'nouvel-onglet', t: Date.now() });
+  await attendre(400);
+  for (const c of 'github.com') {
+    shell.sendInputEvent({ type: 'char', keyCode: c });
+    await attendre(20);
+  }
+  await attendre(400);
+  const premier = await shell.executeJavaScript("document.querySelector('[role=option]')?.textContent || ''");
+  fs.writeFileSync(`${sortie}-commande.png`, (await shell.capturePage()).toPNG());
+  const nAvant = etat.lire().onglets.length;
+  shell.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+  shell.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+  await attendre(600);
+  shell.off('console-message', ecoute);
+  const nouvel = etat.lire().onglets.find((o) => o.id === etat.lire().ongletActif);
+  const ferme = await shell.executeJavaScript("!document.querySelector('[role=dialog]')");
+  noter(
+    'barre de commande : ouverte en < 100 ms, « github.com » ouvert dans un nouvel onglet',
+    latence !== null && latence < 100 && etat.lire().onglets.length === nAvant + 1 && nouvel?.url.startsWith('https://github.com') && ferme && vue().getVisible(),
+    JSON.stringify({ latence, premier, url: nouvel?.url, ferme })
+  );
+
+  // 6. Rechercher dans la page : la barre se loge au-dessus, la page descend de 40 px.
+  const yAvant = vue().getBounds().y;
+  ipc.emettre({ type: 'ui:commande', nom: 'chercher', t: Date.now() });
+  const releves = [];
+  for (let i = 0; i < 12; i++) {
+    await attendre(50);
+    releves.push(await shell.executeJavaScript("(() => { const z = document.getElementById('zone-page'); const b = z.previousElementSibling; return b ? Math.round(b.getBoundingClientRect().height) : -1; })()"));
+  }
+  const yApres = vue().getBounds().y;
+  noter('rechercher : la page descend sous la barre', yApres - yAvant === 40, `${yAvant} → ${yApres}, hauteurs ${releves.join('/')}`);
+
   for (const r of res) console.log(`${r.ok ? '✔' : '✖'} ${r.nom} — ${r.detail}`);
   require('electron').app.exit(res.every((r) => r.ok) ? 0 : 1);
 }

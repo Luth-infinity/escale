@@ -11,7 +11,7 @@ type Store = { etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivan
 
 let store: Store = { etat: null, nav: null, vivants: {} };
 const ecouteurs = new Set<() => void>();
-const commandes = new Set<(nom: string, id?: string) => void>();
+const commandes = new Set<(nom: string, id?: string, t?: number) => void>();
 const transitions = new Set<(de: string, vers: string | null) => void>();
 
 function publier(suivant: Store) {
@@ -67,7 +67,7 @@ export async function demarrer() {
       return;
     }
     if (d.type === 'ui:commande') {
-      for (const f of commandes) f(d.nom, d.id);
+      for (const f of commandes) f(d.nom, d.id, d.t);
       return;
     }
     if (store.etat) publier({ ...store, etat: appliquer(store.etat, d) });
@@ -95,11 +95,11 @@ export function commandeLocale(nom: string, id?: string) {
 }
 
 /** Les commandes d'interface envoyées par le menu natif (Cmd+T, Cmd+F…). */
-export function useCommande(f: (nom: string, id?: string) => void) {
+export function useCommande(f: (nom: string, id?: string, t?: number) => void) {
   const ref = React.useRef(f);
   ref.current = f;
   React.useEffect(() => {
-    const ecoute = (nom: string, id?: string) => ref.current(nom, id);
+    const ecoute = (nom: string, id?: string, t?: number) => ref.current(nom, id, t);
     commandes.add(ecoute);
     return () => void commandes.delete(ecoute);
   }, []);

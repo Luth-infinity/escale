@@ -15,6 +15,8 @@ const RIEN = { type: 'objet', champs: {} };
 const objet = (champs) => ({ type: 'objet', champs });
 const opt = (s) => ({ ...s, optionnel: true });
 
+const { resoudre, MOTEURS } = require('./commande');
+
 const PILE_FERMES = 25;
 const ZOOMS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
@@ -166,6 +168,29 @@ const ACTIONS = {
       else zoom[h] = cible;
       ctx.etat.regler({ zoom });
     }
+  },
+  'commande.resoudre': {
+    schema: objet({ texte: { type: 'string', max: 2000 } }),
+    fn: (ctx, { texte }) => resoudre(texte, ctx.etat.lire(), ctx.historique, ctx.etat.reglages().moteur)
+  },
+  'commande.ouvrir': {
+    schema: objet({
+      type: { type: 'enum', valeurs: ['onglet', 'epingle', 'historique', 'url', 'recherche', 'suggestion'] },
+      url: opt(URL_),
+      id: opt(ID),
+      nouvelOnglet: OUI
+    }),
+    fn: (ctx, { type, url, id, nouvelOnglet }) => {
+      if ((type === 'onglet' || type === 'epingle') && id) return ctx.etat.appliquer('activer', id);
+      const cible = type === 'suggestion' ? (MOTEURS[ctx.etat.reglages().moteur] || MOTEURS.google)(url || '') : url;
+      if (!cible) return;
+      if (nouvelOnglet || !ctx.onglets.courantId()) ctx.onglets.ouvrir(ctx.etat.lire().espaceActif, cible, { actif: true });
+      else ctx.onglets.naviguer(ctx.onglets.courantId(), cible);
+    }
+  },
+  'page.capture': {
+    schema: RIEN,
+    fn: (ctx) => (ctx.onglets.courantId() ? ctx.onglets.capturer(ctx.onglets.courantId()) : null)
   },
   'layout.zone': {
     schema: objet({ x: { type: 'number' }, y: { type: 'number' }, width: { type: 'number' }, height: { type: 'number' } }),

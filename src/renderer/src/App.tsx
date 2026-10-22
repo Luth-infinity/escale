@@ -1,15 +1,22 @@
 import * as React from 'react';
+import { AnimatePresence } from 'motion/react';
 import { agir, demarrer, useCommande, useEtat, useEtatPret } from './etat';
 import { teintes, useSyncedTheme } from './lib/theme';
 import { BarreLaterale } from './components/BarreLaterale';
 import { TransitionPage } from './components/TransitionPage';
+import { BarreCommande } from './components/BarreCommande';
+import { BarreRecherche } from './components/BarreRecherche';
 
 /**
  * Le shell : la barre latérale à gauche, la page encadrée à droite. La page
  * est une vue native posée par le process principal sur `#zone-page`, dont on
  * lui envoie la géométrie à chaque changement.
  */
-function ZonePage() {
+type Commande = { nouvelOnglet: boolean; depuis?: number } | null;
+
+function ZonePage({ commande, fermerCommande, recherche, fermerRecherche }: {
+  commande: Commande; fermerCommande: () => void; recherche: boolean; fermerRecherche: () => void;
+}) {
   const ref = React.useRef<HTMLDivElement>(null);
   React.useLayoutEffect(() => {
     const el = ref.current!;
@@ -33,9 +40,11 @@ function ZonePage() {
   // La bordure dessine le cadre ; la vue native est posée dans son rectangle.
   return (
     <main className="relative min-w-0 flex-1 p-2 pl-0">
-      <div className="h-full w-full rounded-[11px] border border-shell-border bg-shell-raised p-px">
-        <div ref={ref} id="zone-page" className="relative h-full w-full rounded-[10px]">
+      <div className="flex h-full w-full flex-col rounded-[11px] border border-shell-border bg-shell-raised p-px">
+        <AnimatePresence>{recherche && <BarreRecherche fermer={fermerRecherche} />}</AnimatePresence>
+        <div ref={ref} id="zone-page" className="relative min-h-0 w-full flex-1 rounded-[10px]">
           <TransitionPage />
+          {commande && <BarreCommande nouvelOnglet={commande.nouvelOnglet} depuis={commande.depuis} fermer={fermerCommande} />}
         </div>
       </div>
     </main>
@@ -58,17 +67,23 @@ function useTeinteEspace(sombre: boolean) {
 function Shell() {
   const sombre = useSyncedTheme();
   useTeinteEspace(sombre);
-  const [commande, setCommande] = React.useState<null | { nouvelOnglet: boolean }>(null);
-  useCommande((nom) => {
-    if (nom === 'nouvel-onglet') setCommande({ nouvelOnglet: true });
-    if (nom === 'adresse') setCommande({ nouvelOnglet: false });
+  const [commande, setCommande] = React.useState<Commande>(null);
+  const [recherche, setRecherche] = React.useState(false);
+  useCommande((nom, _id, t) => {
+    if (nom === 'nouvel-onglet') setCommande({ nouvelOnglet: true, depuis: t });
+    if (nom === 'adresse') setCommande({ nouvelOnglet: false, depuis: t });
+    if (nom === 'chercher') setRecherche(true);
   });
-  const ouvrirCommande = React.useCallback((nouvelOnglet: boolean) => setCommande({ nouvelOnglet }), []);
-  void commande;
+  const ouvrirCommande = React.useCallback((nouvelOnglet: boolean) => setCommande({ nouvelOnglet, depuis: Date.now() }), []);
   return (
     <div className="flex h-full">
       <BarreLaterale ouvrirCommande={ouvrirCommande} />
-      <ZonePage />
+      <ZonePage
+        commande={commande}
+        fermerCommande={() => setCommande(null)}
+        recherche={recherche}
+        fermerRecherche={() => setRecherche(false)}
+      />
     </div>
   );
 }

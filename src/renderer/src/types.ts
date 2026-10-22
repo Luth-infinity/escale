@@ -32,7 +32,7 @@ export type Delta =
   | { type: 'tab:etat'; id: string; vivant: boolean; son: boolean }
   | ({ type: 'nav:state' } & Nav)
   | { type: 'settings:changed'; patch: Partial<Reglages> }
-  | { type: 'ui:commande'; nom: string; id?: string }
+  | { type: 'ui:commande'; nom: string; id?: string; t?: number }
   | { type: 'page:transition'; de: string; vers: string | null };
 
 declare module 'react' {

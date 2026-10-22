@@ -11,6 +11,7 @@ const onglets = require('./onglets');
 const menu = require('./menu');
 const menusContextuels = require('./menus-contextuels');
 const { ACTIONS } = require('./actions');
+const suggestions = require('./suggestions');
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const DEV_SERVER = 'http://localhost:5373/';
@@ -26,9 +27,9 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'escale', privileges: { standard
 app.userAgentFallback = CHROME_UA;
 
 let win = null;
-const contexte = { etat, onglets, fermes: [] };
+const contexte = { etat, onglets, fermes: [], historique: null };
 const agir = (nom, payload) => ACTIONS[nom].fn(contexte, payload);
-const ui = (nom, id) => ipc.emettre({ type: 'ui:commande', nom, ...(id ? { id } : {}) });
+const ui = (nom, id) => ipc.emettre({ type: 'ui:commande', nom, t: Date.now(), ...(id ? { id } : {}) });
 const reconstruireMenu = () => menu.construire({ agir, ui, onglets, etat });
 const dossierDonnees = () => app.getPath('userData');
 
@@ -56,7 +57,8 @@ function creerFenetre() {
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
-  onglets.init({ fenetre: win, historique: historique.ouvrir(path.join(dossierDonnees(), 'history.sqlite')), dev: isDev });
+  contexte.historique = historique.ouvrir(path.join(dossierDonnees(), 'history.sqlite'));
+  onglets.init({ fenetre: win, historique: contexte.historique, dev: isDev });
   // Gestes : balayage du trackpad (macOS, selon le réglage système) et boutons
   // précédent / suivant de la souris (Windows).
   win.on('swipe', (_e, sens) => {
@@ -107,6 +109,9 @@ app.whenReady().then(() => {
   ipc.handle('etat:initial', { type: 'objet', champs: {} }, () => etat.lire());
   for (const [nom, { schema, fn }] of Object.entries(ACTIONS)) ipc.action(nom, schema, (p) => fn(contexte, p));
   menusContextuels.declarer({ action: ipc.action, agir, ui, etat, fenetre: () => win });
+  ipc.action('commande.suggestions', { type: 'objet', champs: { texte: { type: 'string', max: 500 } } }, ({ texte }) =>
+    etat.reglages().suggestions ? suggestions.distantes(texte) : []
+  );
   reconstruireMenu();
   // Le menu porte la liste des espaces (Ctrl+1…9) : il suit leurs changements.
   etat.ecouter((d) => {
