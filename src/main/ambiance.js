@@ -312,7 +312,7 @@ function scriptAmbiance() {
 function scriptBulle(L) {
   if (window.__escaleBulle) return;
   const file = [];
-  const etat = { ambiance: false, sponsors: true, vue: null, video: null, toast: null };
+  const etat = { ambiance: false, sponsors: true, sortie: false, vue: null, video: null, toast: null };
 
   // YouTube impose les Trusted Types : pas d'innerHTML, tout se construit à la main.
   const NS = 'http://www.w3.org/2000/svg';
@@ -337,7 +337,12 @@ function scriptBulle(L) {
     sponsors: () => icone('M5 4l10 8-10 8z', 'M19 5v14'),
     retour: () => icone('M15 18l-6-6 6-6'),
     suite: () => icone('M9 18l6-6-6-6'),
-    dossier: () => icone('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z')
+    dossier: () => icone('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'),
+    sortir: () => icone('M14 3h7v7', 'M21 3l-8 8', 'M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5'),
+    lecture: () => icone('M7 4l13 8-13 8z'),
+    pause: () => icone('M8 4v16', 'M16 4v16'),
+    son: () => icone('M11 5L6 9H3v6h3l5 4z', 'M15.5 8.5a5 5 0 0 1 0 7', 'M18.5 5.5a9 9 0 0 1 0 13'),
+    rentrer: () => icone('M10 14L3 21', 'M3 14v7h7', 'M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5')
   };
 
   const STYLE = `
@@ -470,7 +475,8 @@ function scriptBulle(L) {
   const barre = el('div', { class: 'barre' }, [barreRemplie]);
   const bDossier = ligne(ICONES.dossier(), L.afficher);
   const blocTelechargement = el('div', {}, [etatTexte, barre, bDossier]);
-  const vueMenu = el('div', { class: 'vue active' }, [el('div', { class: 'titre' }, ['Escale']), bAmbiance, bSponsors, bTelecharger, blocTelechargement]);
+  const bSortir = ligne(ICONES.sortir(), L.sortir);
+  const vueMenu = el('div', { class: 'vue active' }, [el('div', { class: 'titre' }, ['Escale']), bSortir, bAmbiance, bSponsors, bTelecharger, blocTelechargement]);
   const bRetour = el('button', { class: 'ligne-retour' }, [ICONES.retour(), el('span', {}, [L.telecharger])]);
   const formats = L.formats.map(([id, texte]) => {
     if (!id) return el('div', { style: 'height:1px;margin:4px 10px;background:rgba(127,127,127,.25)' });
@@ -645,6 +651,10 @@ function scriptBulle(L) {
   bAmbiance.addEventListener('click', () => file.push({ type: 'ambiance' }));
   bSponsors.addEventListener('click', () => file.push({ type: 'sponsors' }));
   bTelecharger.addEventListener('click', () => montrer('formats'));
+  bSortir.addEventListener('click', () => {
+    montrer(null);
+    file.push({ type: 'sortir' });
+  });
   bRetour.addEventListener('click', () => montrer('menu'));
   bDossier.addEventListener('click', () => {
     if (etat.video) file.push({ type: 'montrer', id: etat.video.id });
@@ -659,6 +669,7 @@ function scriptBulle(L) {
     bAmbiance.disabled = location.pathname !== '/watch';
     bSponsors.setAttribute('aria-pressed', String(etat.sponsors));
     bTelecharger.disabled = !estVideo();
+    bSortir.disabled = location.pathname !== '/watch' || !document.querySelector('#movie_player video');
     const v = etat.video;
     blocTelechargement.style.display = v ? '' : 'none';
     if (v) {
@@ -726,6 +737,9 @@ function scriptBulle(L) {
   // Hublink). Un bouton, jamais un conteneur.
   let pubSignalee = 0;
   const boutonIgnorer = () => {
+    // Sortie en mode vidéo, la page est masquée et l'image couvre le bouton :
+    // un clic à sa place tomberait sur la vidéo.
+    if (etat.sortie) return null;
     if (!etat.sponsors || !document.querySelector('#movie_player.ad-showing')) return null;
     const b = document.querySelector('#movie_player button.ytp-skip-ad-button, #movie_player .ytp-ad-skip-button-modern, #movie_player .ytp-ad-skip-button');
     if (!b || !b.checkVisibility || !b.checkVisibility()) return null;
@@ -750,7 +764,100 @@ function scriptBulle(L) {
   poser();
   peindre();
 
+  // ---- mode vidéo : la page sortie dans sa petite fenêtre (videomode.js) ----
+  // La page n'est pas remaniée : tout devient invisible, la vidéo repasse
+  // visible et fixée sur toute la fenêtre. Déplacer l'élément dans le DOM ne
+  // tiendrait pas : YouTube le remet aussitôt en place (Hublink).
+  const styleSortie = document.createElement('style');
+  styleSortie.textContent = `
+    html.escale-sortie, html.escale-sortie body { background: #000 !important; overflow: hidden !important; }
+    html.escale-sortie body * { visibility: hidden !important; }
+    html.escale-sortie #movie_player video.html5-main-video {
+      visibility: visible !important; position: fixed !important; inset: 0 !important; left: 0 !important; top: 0 !important;
+      width: 100vw !important; height: 100vh !important; object-fit: contain !important; transform: none !important;
+      z-index: 2147482000 !important; background: #000 !important;
+    }
+    html.escale-sortie #escale-ambiance { display: none !important; }
+  `;
+  const STYLE_COMMANDES = `
+    .commandes { position: fixed; left: 0; right: 0; bottom: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity .25s; display: none; }
+    .sortie .commandes { display: block; }
+    .commandes.visibles { opacity: 1; }
+    .poignee { position: absolute; left: 0; right: 0; top: 0; height: 40px; pointer-events: auto; cursor: grab;
+      background: linear-gradient(rgba(0, 0, 0, .45), transparent); }
+    .poignee:active { cursor: grabbing; }
+    .barre-video {
+      position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 5px;
+      border-radius: 999px; pointer-events: auto; color: #fff;
+      background: rgba(20, 22, 26, 0.42); backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 30px -10px rgba(0, 0, 0, .7);
+    }
+    .barre-video button { width: auto; padding: 8px; border-radius: 999px; color: #fff; }
+    .barre-video button:hover { background: rgba(255, 255, 255, 0.14); }
+    .barre-video input { width: 84px; accent-color: #1fb3a9; }
+    .sortie .bulle, .sortie .panneau, .sortie .toast { display: none !important; }
+  `;
+  const styleCommandes = document.createElement('style');
+  styleCommandes.textContent = STYLE_COMMANDES;
+  racine.append(styleCommandes);
+  const bLecture = el('button', { title: L.lecture }, [ICONES.pause()]);
+  const volume = el('input', { type: 'range', min: '0', max: '100', value: '100', title: L.volume });
+  const bRentrer = el('button', { title: L.rentrer }, [ICONES.rentrer()]);
+  const poignee = el('div', { class: 'poignee', title: L.deplacer });
+  const commandes = el('div', { class: 'commandes' }, [poignee, el('div', { class: 'barre-video' }, [bLecture, el('span', { style: 'display:flex;padding:0 2px' }, [ICONES.son()]), volume, bRentrer])]);
+  monde.append(commandes);
+
+  const videoPrincipale = () => document.querySelector('#movie_player video.html5-main-video') || document.querySelector('#movie_player video');
+  const iconeLecture = () => {
+    const v = videoPrincipale();
+    bLecture.replaceChildren(v && !v.paused ? ICONES.pause() : ICONES.lecture());
+  };
+  // Les commandes ne paraissent qu'au survol, et restent tant que la vidéo est en pause.
+  let minuteurCommandes = 0;
+  const reveiller = () => {
+    if (!etat.sortie) return;
+    commandes.classList.add('visibles');
+    iconeLecture();
+    clearTimeout(minuteurCommandes);
+    minuteurCommandes = setTimeout(() => {
+      const v = videoPrincipale();
+      if (v && !v.paused) commandes.classList.remove('visibles');
+    }, 2200);
+  };
+  document.addEventListener('mousemove', reveiller, true);
+  document.addEventListener('mouseleave', () => {
+    const v = videoPrincipale();
+    if (v && !v.paused) commandes.classList.remove('visibles');
+  });
+  window.addEventListener('play', iconeLecture, true);
+  window.addEventListener('pause', () => {
+    iconeLecture();
+    reveiller();
+  }, true);
+  bLecture.addEventListener('click', () => file.push({ type: 'lecture' }));
+  volume.addEventListener('input', () => file.push({ type: 'son', valeur: Number(volume.value) }));
+  bRentrer.addEventListener('click', () => file.push({ type: 'rentrer' }));
+  // Le déplacement passe par le principal, qui suit le pointeur : la fenêtre ne
+  // prend jamais le premier plan, une zone « drag » n'y suffirait pas.
+  poignee.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    poignee.setPointerCapture(e.pointerId);
+    file.push({ type: 'glisser', actif: true });
+  });
+  const finGlisser = () => file.push({ type: 'glisser', actif: false });
+  poignee.addEventListener('pointerup', finGlisser);
+  poignee.addEventListener('pointercancel', finGlisser);
+
   window.__escaleBulle = {
+    sortie: (actif, son) => {
+      etat.sortie = Boolean(actif);
+      if (etat.sortie && !styleSortie.isConnected) document.documentElement.append(styleSortie);
+      document.documentElement.classList.toggle('escale-sortie', etat.sortie);
+      monde.classList.toggle('sortie', etat.sortie);
+      if (Number.isFinite(son)) volume.value = String(son);
+      montrer(null);
+      if (etat.sortie) reveiller();
+    },
     prendre: () => ({ demandes: file.splice(0), video: idVideo(), pub: boutonIgnorer() }),
     ambiance: (actif) => {
       etat.ambiance = Boolean(actif);
@@ -805,12 +912,36 @@ function signalerVideo(wc, e) {
  * demandes de la bulle sont relevées tant que la page est sur YouTube.
  * `o` : { reglages(), libelles(), basculer(cle), telecharger(wc, format), montrer(id), passages(idVideo) }.
  */
+// Le lecteur YouTube, dans le monde de la page : le son et la lecture passent
+// par lui, jamais par l'élément vidéo, que YouTube réajuste à chaque pub.
+const LECTEUR = "document.getElementById('movie_player')";
+const basculerLecture = `(p => p && (p.getPlayerState() === 1 ? p.pauseVideo() : p.playVideo()))(${LECTEUR})`;
+const reglerSon = (v) => `(p => { if (!p) return; p.unMute(); p.setVolume(${Math.max(0, Math.min(100, Math.round(v)))}); })(${LECTEUR})`;
+const lireSon = `(p => (p && p.getVolume ? (p.isMuted() ? 0 : p.getVolume()) : 100))(${LECTEUR})`;
+
+/** Passe la page en mode vidéo (vidéo seule, commandes au survol) ou l'en sort. */
+async function poserSortie(wc, actif) {
+  if (wc.isDestroyed()) return;
+  const son = actif ? await wc.executeJavaScript(lireSon).catch(() => 100) : null;
+  wc.executeJavaScriptInIsolatedWorld(MONDE, [{ code: `window.__escaleBulle && window.__escaleBulle.sortie(${ia(actif)}, ${Number(son) || 0});` }]).catch(() => {});
+}
+
+/**
+ * À chaque page YouTube : ambiance et bulle suivent les réglages, et les
+ * demandes de la bulle sont relevées tant que la page est sur YouTube — plus
+ * souvent quand elle est sortie en mode vidéo, où l'on glisse la fenêtre.
+ * `o` : { reglages(), libelles(), basculer(cle), telecharger(wc, format), montrer(id),
+ *         passages(idVideo), sortir(wc), rentrer(wc), glisser(actif), estSortie(wc) }.
+ */
 function brancher(wc, o) {
   wc.on('dom-ready', () => appliquer(wc, o.reglages(), o.libelles()));
   let videoVue = null;
-  const releve = setInterval(async () => {
-    if (wc.isDestroyed()) return clearInterval(releve);
-    if (!surYouTube(wc.getURL())) return;
+  const relever = async () => {
+    if (wc.isDestroyed()) return;
+    if (surYouTube(wc.getURL())) await releverUneFois();
+    setTimeout(relever, o.estSortie(wc) ? 50 : 300);
+  };
+  const releverUneFois = async () => {
     const r = await wc
       .executeJavaScriptInIsolatedWorld(MONDE, [{ code: 'window.__escaleBulle ? window.__escaleBulle.prendre() : null' }])
       .catch(() => null);
@@ -820,6 +951,11 @@ function brancher(wc, o) {
       if (d?.type === 'sponsors') o.basculer('sponsors');
       if (d?.type === 'telecharger' && typeof d.format === 'string') o.telecharger(wc, d.format);
       if (d?.type === 'montrer' && typeof d.id === 'string') o.montrer(d.id);
+      if (d?.type === 'sortir') o.sortir(wc);
+      if (d?.type === 'rentrer') o.rentrer(wc);
+      if (d?.type === 'glisser') o.glisser(Boolean(d.actif));
+      if (d?.type === 'lecture') wc.executeJavaScript(basculerLecture).catch(() => {});
+      if (d?.type === 'son' && Number.isFinite(d.valeur)) wc.executeJavaScript(reglerSon(d.valeur)).catch(() => {});
     }
     // Nouvelle vidéo : ses passages sponsorisés, si le réglage le veut.
     if (r.video !== videoVue) {
@@ -837,7 +973,8 @@ function brancher(wc, o) {
       wc.sendInputEvent({ type: 'mouseDown', x: p.x, y: p.y, button: 'left', clickCount: 1 });
       wc.sendInputEvent({ type: 'mouseUp', x: p.x, y: p.y, button: 'left', clickCount: 1 });
     }
-  }, 300);
+  };
+  relever();
 }
 
-module.exports = { brancher, appliquer, signalerVideo, surYouTube };
+module.exports = { brancher, appliquer, signalerVideo, surYouTube, poserSortie };

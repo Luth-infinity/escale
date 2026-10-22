@@ -8,6 +8,7 @@ const ua = require('./ua');
 const ambiance = require('./ambiance');
 const videos = require('./videos');
 const sponsors = require('./sponsors');
+const videomode = require('./videomode');
 const { t } = require('./i18n');
 const favicon = require('./favicon');
 const menucontextuel = require('./menucontextuel');
@@ -45,6 +46,8 @@ let demande = 0;
 let zoneRect = { x: 0, y: 0, width: 0, height: 0 };
 let overlay = false;
 let pleinEcran = null; // id de l'onglet dont une vidéo est en plein écran
+let sortie = null; // id de l'onglet sorti en mode vidéo (videomode.js)
+let rappelSortie = null; // le ramène dans la fenêtre : défini par videomode.js
 let minuteurRevele = 0;
 
 const meta = regrouperMeta(250, (id, patch) => {
@@ -55,6 +58,8 @@ function init(options) {
   fenetre = options.fenetre;
   historique = options.historique;
   dev = options.dev;
+  // Le mode vidéo emprunte les vues d'ici ; la page y passe en « vidéo seule ».
+  videomode.configurer({ onglets: module.exports, poserClasse: (wc, actif) => ambiance.poserSortie(wc, actif) });
   etat.ecouter(surDelta);
   // Basculer l'ambiance ou les sponsors prévient aussitôt les pages YouTube ouvertes.
   etat.ecouter((d) => {
@@ -168,6 +173,11 @@ function hote(url) {
 // Les textes de la bulle YouTube, dans la langue d'Escale.
 const libellesBulle = () => ({
   ambiance: t('Ambiance'),
+  sortir: t('Sortir la vidéo'),
+  lecture: t('Lecture / pause'),
+  volume: t('Volume'),
+  rentrer: t('Revenir dans Escale'),
+  deplacer: t('Glisser pour déplacer'),
   sponsors: t('Passer sponsors et pubs'),
   telecharger: t('Télécharger'),
   afficher: t('Afficher dans le dossier'),
@@ -203,7 +213,11 @@ function cabler(vue, id) {
       const chemin = videos.cheminFini(idVideo);
       if (chemin) shell.showItemInFolder(chemin);
     },
-    passages: (idVideo) => sponsors.passages(idVideo)
+    passages: (idVideo) => sponsors.passages(idVideo),
+    sortir: () => videomode.ouvrir(id),
+    rentrer: () => videomode.fermer(),
+    glisser: (actif) => videomode.glisser(actif),
+    estSortie: () => videomode.estSortie(id)
   });
 
   wc.on('enter-html-full-screen', () => {
@@ -321,6 +335,8 @@ function emettreNav(id) {
 
 /** Affiche un onglet ; seul le dernier appel l'emporte. */
 async function afficher(id) {
+  // Revenir sur l'onglet sorti en mode vidéo le ramène dans la fenêtre.
+  if (sortie && sortie === id) rappelSortie?.(id);
   const n = ++demande;
   const vue = await assurerVue(id);
   if (n !== demande || !vue || !fenetre || fenetre.isDestroyed()) return;
@@ -328,7 +344,7 @@ async function afficher(id) {
   // La page sortante est photographiée (≈ 7 ms) : le shell la fait fondre vers
   // la dernière image connue de la page entrante, puis on révèle la vraie.
   let transition = false;
-  if (precedente && precedente !== vue && !overlay && precedente.getVisible()) {
+  if (precedente && precedente !== vue && courant !== sortie && !overlay && precedente.getVisible()) {
     const de = await capturer(courant).catch(() => null);
     if (n !== demande) return;
     if (de) {
@@ -337,7 +353,7 @@ async function afficher(id) {
     }
   }
   clearTimeout(minuteurRevele);
-  if (precedente && precedente !== vue) fenetre.contentView.removeChildView(precedente);
+  if (precedente && precedente !== vue && courant !== sortie) fenetre.contentView.removeChildView(precedente);
   courant = id;
   fenetre.contentView.addChildView(vue);
   // Un onglet quitté en plein écran n'y est plus quand on y revient.
@@ -362,13 +378,15 @@ async function afficher(id) {
 function masquer() {
   demande++;
   const vue = courant ? vues.get(courant) : null;
-  if (vue && fenetre && !fenetre.isDestroyed()) fenetre.contentView.removeChildView(vue);
+  if (vue && courant !== sortie && fenetre && !fenetre.isDestroyed()) fenetre.contentView.removeChildView(vue);
   courant = null;
 }
 
 function detruire(id) {
   const vue = vues.get(id);
   if (!vue) return;
+  // Fermer un onglet sorti en mode vidéo ferme d'abord sa fenêtre.
+  if (sortie === id) rappelSortie?.(id);
   if (courant === id) masquer();
   meta.oublier(id);
   // Retirée de la table AVANT la fermeture : la lib d'extensions rappelle le
@@ -388,8 +406,34 @@ function endormir(id) {
 function balayerVeille() {
   const e = etat.lire();
   const delai = (e.reglages.veilleMinutes || 0) * 60_000;
-  for (const id of aEndormir(e.onglets, new Set(vues.keys()), courant, Date.now(), delai, joueDuSon)) endormir(id);
+  // Une page sortie en mode vidéo ne s'endort jamais : on la regarde.
+  for (const id of aEndormir(e.onglets, new Set(vues.keys()), courant, Date.now(), delai, joueDuSon)) if (id !== sortie) endormir(id);
 }
+
+/**
+ * Le mode vidéo (videomode.js) emporte la vue de l'onglet dans sa fenêtre :
+ * elle n'appartient plus à la fenêtre principale, qui ne la pose plus. La vue
+ * est déplacée, pas recréée : la lecture continue.
+ */
+function detacherPourVideo(id) {
+  const vue = vues.get(id);
+  if (!vue || sortie) return null;
+  if (courant === id && fenetre && !fenetre.isDestroyed()) fenetre.contentView.removeChildView(vue);
+  sortie = id;
+  return vue;
+}
+
+function reprendreDeVideo(id) {
+  if (sortie !== id) return;
+  sortie = null;
+  const vue = vues.get(id);
+  if (!vue || courant !== id || !fenetre || fenetre.isDestroyed()) return;
+  fenetre.contentView.addChildView(vue);
+  poserCourante();
+  vue.setVisible(!overlay);
+}
+
+const idSortie = () => sortie;
 
 function surDelta(d, e) {
   if (d.type === 'tab:removed') detruire(d.id);
@@ -415,7 +459,7 @@ function boite() {
 
 function poserCourante() {
   const vue = courant ? vues.get(courant) : null;
-  if (!vue) return;
+  if (!vue || courant === sortie) return;
   vue.setBounds(boite());
   vue.setBorderRadius(pleinEcran && pleinEcran === courant ? 0 : RAYON);
 }
@@ -439,7 +483,7 @@ function setOverlay(actif) {
   // Le clavier va à la modale (Échap, Entrée), pas à la page qu'elle recouvre.
   if (overlay && fenetre && !fenetre.isDestroyed()) fenetre.webContents.focus();
   const vue = courant ? vues.get(courant) : null;
-  if (!vue) return;
+  if (!vue || courant === sortie) return;
   vue.setVisible(!overlay);
   if (!overlay) vue.webContents.focus();
 }
@@ -465,5 +509,8 @@ const vivants = () => [...vues.keys()];
 
 module.exports = {
   init, ouvrir, afficher, masquer, endormir, zone, setOverlay, capturer, naviguer, assurerVue, assurerSession,
-  webContentsDe, courantId, vivants, idDe
+  webContentsDe, courantId, vivants, idDe, detacherPourVideo, reprendreDeVideo, idSortie,
+  definirRappelSortie: (f) => {
+    rappelSortie = f;
+  }
 };

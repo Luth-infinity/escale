@@ -20,6 +20,7 @@ const importFirefox = require('./import-firefox');
 const videos = require('./videos');
 const telechargements = require('./telechargements');
 const defaut = require('./defaut');
+const videomode = require('./videomode');
 
 // Le mode dev se déduit de l'empaquetage seul, jamais d'un argument.
 const isDev = !app.isPackaged;
@@ -150,6 +151,8 @@ function creerFenetre() {
     if (d.type === 'settings:changed' && 'barreMasquee' in d.patch) surveillerBord();
   });
   win.once('ready-to-show', () => win.show());
+  // Une vidéo sortie ne doit pas garder Escale ouvert une fois la fenêtre fermée.
+  win.on('close', () => videomode.fermer());
   win.loadURL(URL_SHELL);
   const actif = etat.lire().ongletActif;
   if (actif) onglets.afficher(actif);
