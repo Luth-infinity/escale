@@ -212,7 +212,8 @@ const ACTIONS = {
     }),
     fn: (ctx, patch) => ctx.etat.regler(patch)
   },
-  'barre.replier': { schema: objet({ oui: OUI }), fn: (ctx, { oui }) => ctx.etat.regler({ barreRepliee: oui }) }
+  'barre.replier': { schema: objet({ oui: OUI }), fn: (ctx, { oui }) => ctx.etat.regler({ barreRepliee: oui }) },
+  'barre.masquer': { schema: objet({ oui: OUI }), fn: (ctx, { oui }) => ctx.etat.regler({ barreMasquee: oui }) }
 };
 
 module.exports = { ACTIONS, ZOOMS };

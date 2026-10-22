@@ -16,6 +16,7 @@ const REGLAGES = {
   langue: 'system',
   theme: 'system',
   barreRepliee: false,
+  barreMasquee: false,
   ambiance: false,
   sponsors: true,
   derniereVersionVue: null,

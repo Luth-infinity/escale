@@ -49,8 +49,10 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale
   // Hors macOS, le haut laisse la place aux boutons de la fenêtre (36 px, cf.
   // HAUTEUR_BOUTONS dans le principal) et sert de poignée de déplacement.
   const mac = window.escale.plateforme === 'darwin';
+  // Barre masquée : 8 px de shell à gauche, où le pointeur la fait revenir.
+  const masquee = useEtat((e) => e.reglages.barreMasquee);
   return (
-    <main className={cn('relative flex min-w-0 flex-1 flex-col p-2 pl-0', !mac && 'pt-0')}>
+    <main className={cn('relative flex min-w-0 flex-1 flex-col p-2', !masquee && 'pl-0', !mac && 'pt-0')}>
       {!mac && <div className="drag h-9 w-full shrink-0" />}
       <div className="flex min-h-0 w-full flex-1 flex-col rounded-[11px] border border-shell-border bg-shell-raised p-px">
         <AnimatePresence>{recherche && <BarreRecherche fermer={fermerRecherche} />}</AnimatePresence>

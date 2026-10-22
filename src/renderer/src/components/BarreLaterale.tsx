@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { AnimatePresence, animate, motion, useMotionValue } from 'motion/react';
-import { ArrowLeft, ArrowRight, Lock, RotateCw, X } from 'lucide-react';
-import { agir, useCommande, useEtat, useNav } from '@/etat';
+import { ArrowLeft, ArrowRight, Lock, PanelLeft, PanelLeftClose, RotateCw, X } from 'lucide-react';
+import { agir, commandeLocale, useCommande, useEtat, useNav } from '@/etat';
 import { aplatir } from '@/lib/aplatir';
 import { decouperAdresse } from '@/lib/adresse';
 import { RESSORT, useMouvement } from '@/lib/ressorts';
@@ -71,11 +71,25 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
     () => aplatir({ onglets, dossiers } as Parameters<typeof aplatir>[0], espaceActif),
     [onglets, dossiers, espaceActif]
   );
+  const masquee = useEtat((e) => e.reglages.barreMasquee);
+  // Masquée, la barre revient le temps d'un survol du bord gauche.
+  const [survol, setSurvol] = React.useState(false);
+  const cachee = masquee && !survol;
   const [enRenommage, setEnRenommage] = React.useState<string | null>(null);
   useCommande((nom, id) => {
     if (nom === 'renommer' && id) setEnRenommage(id);
     if (nom === 'replier') agir('barre.replier', { oui: !rail });
+    if (nom === 'masquer') {
+      setSurvol(false);
+      agir('barre.masquer', { oui: !masquee });
+    }
+    if (nom === 'barre-quitter') setSurvol(false);
   });
+  const reveler = () => {
+    if (!masquee || survol) return;
+    setSurvol(true);
+    agir('barre.survol');
+  };
 
   // ---- changer d'espace en balayant à deux doigts ----
   const x = useMotionValue(0);
@@ -104,9 +118,13 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
   };
 
   return (
+    <>
+    {/* Le bord gauche de la fenêtre, quand la barre est masquée : la pointe du
+        pointeur suffit à la faire revenir. */}
+    {cachee && <div onMouseEnter={reveler} className="fixed inset-y-0 left-0 z-30 w-2" />}
     <motion.aside
       initial={false}
-      animate={{ width: rail ? LARGEUR_RAIL : LARGEUR }}
+      animate={{ width: cachee ? 0 : rail ? LARGEUR_RAIL : LARGEUR }}
       transition={transition}
       onWheel={surMolette}
       className="flex h-full shrink-0 flex-col overflow-hidden"
@@ -121,6 +139,9 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
         {mac && !rail && <span className="mr-auto" />}
         {!rail && (
           <>
+            <BoutonNav titre={masquee ? t('Garder la barre (Ctrl+S)') : t('Masquer la barre (Ctrl+S)')} onClick={() => commandeLocale('masquer')}>
+              {masquee ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
+            </BoutonNav>
             <BoutonNav titre={t('Précédent')} desactive={!nav?.peutReculer} onClick={() => agir('nav.precedent')}>
               <ArrowLeft className="size-4" />
             </BoutonNav>
@@ -167,5 +188,6 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
       <BandeauMaj rail={rail} />
       <SelecteurEspaces rail={rail} />
     </motion.aside>
+    </>
   );
 });

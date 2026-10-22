@@ -1,4 +1,4 @@
-const { WebContentsView, session: sessions, shell } = require('electron');
+const { WebContentsView, screen, session: sessions, shell } = require('electron');
 const etat = require('./etat');
 const ipc = require('./ipc');
 const extensions = require('./extensions');
@@ -44,6 +44,7 @@ let courant = null;
 let demande = 0;
 let zoneRect = { x: 0, y: 0, width: 0, height: 0 };
 let overlay = false;
+let pleinEcran = null; // id de l'onglet dont une vidéo est en plein écran
 let minuteurRevele = 0;
 
 const meta = regrouperMeta(250, (id, patch) => {
@@ -204,6 +205,17 @@ function cabler(vue, id) {
     passages: (idVideo) => sponsors.passages(idVideo)
   });
 
+  wc.on('enter-html-full-screen', () => {
+    pleinEcran = id;
+    poserCourante();
+    // La fenêtre finit de s'agrandir après l'événement : on repose une fois posée.
+    setTimeout(poserCourante, 150);
+  });
+  wc.on('leave-html-full-screen', () => {
+    if (pleinEcran === id) pleinEcran = null;
+    poserCourante();
+  });
+
   wc.on('page-title-updated', (_e, titre) => meta(id, { titre }));
   wc.on('page-favicon-updated', async (_e, icones) => {
     const url = (icones || []).find(isUsableFavicon);
@@ -325,7 +337,9 @@ async function afficher(id) {
   if (precedente && precedente !== vue) fenetre.contentView.removeChildView(precedente);
   courant = id;
   fenetre.contentView.addChildView(vue);
-  vue.setBounds(zoneRect);
+  // Un onglet quitté en plein écran n'y est plus quand on y revient.
+  if (pleinEcran && pleinEcran !== id) pleinEcran = null;
+  poserCourante();
   const reveler = () => {
     if (n !== demande || overlay) return;
     vue.setVisible(true);
@@ -382,6 +396,27 @@ function surDelta(d, e) {
   } else if (d.type === 'space:removed') sessionsEspace.delete(d.id);
 }
 
+/**
+ * Où poser la page courante : la zone que le shell lui laisse, ou tout l'écran
+ * quand elle est en plein écran (une vidéo). Electron agrandit la fenêtre seul,
+ * mais la vue garderait la place du shell, barre latérale comprise.
+ *
+ * En plein écran, on mesure l'écran, pas la fenêtre : à l'entrée, la fenêtre
+ * annonce encore une taille provisoire, et plus aucun resize ne suit (Hublink).
+ */
+function boite() {
+  if (!pleinEcran || pleinEcran !== courant || !fenetre || fenetre.isDestroyed()) return zoneRect;
+  const { width, height } = screen.getDisplayMatching(fenetre.getBounds()).bounds;
+  return { x: 0, y: 0, width, height };
+}
+
+function poserCourante() {
+  const vue = courant ? vues.get(courant) : null;
+  if (!vue) return;
+  vue.setBounds(boite());
+  vue.setBorderRadius(pleinEcran && pleinEcran === courant ? 0 : RAYON);
+}
+
 /** La géométrie de la zone de page, mesurée par le shell. */
 function zone(rect) {
   const r = {
@@ -392,8 +427,7 @@ function zone(rect) {
   };
   if (r.x === zoneRect.x && r.y === zoneRect.y && r.width === zoneRect.width && r.height === zoneRect.height) return;
   zoneRect = r;
-  const vue = courant ? vues.get(courant) : null;
-  if (vue) vue.setBounds(r);
+  poserCourante();
 }
 
 /** Une modale du shell est ouverte : la page native passerait par-dessus. */

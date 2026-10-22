@@ -1,4 +1,4 @@
-const { app, BrowserWindow, nativeTheme, session, protocol, shell } = require('electron');
+const { app, BrowserWindow, nativeTheme, screen, session, protocol, shell } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { CHROME_UA } = require('./ua');
@@ -91,11 +91,35 @@ function creerFenetre() {
     if (cmd === 'browser-backward') agir('nav.precedent', {});
     if (cmd === 'browser-forward') agir('nav.suivant', {});
   });
-  // Barre repliée en rail de 56 px : les feux de macOS (≈ 70 px) déborderaient
-  // sur la page. On les masque, comme Arc.
+  // Barre repliée en rail de 56 px ou masquée : les feux de macOS (≈ 70 px)
+  // déborderaient sur la page. On les masque, comme Arc.
+  let barreSurvolee = false;
   const feux = () => {
-    if (process.platform === 'darwin') win.setWindowButtonVisibility(!etat.reglages().barreRepliee);
+    const r = etat.reglages();
+    if (process.platform === 'darwin') win.setWindowButtonVisibility(!r.barreRepliee && (!r.barreMasquee || barreSurvolee));
   };
+  // Barre masquée et réapparue au survol du bord : le shell ne voit pas le
+  // pointeur partir sur la page (vue native), on le suit d'ici et on la
+  // recache dès qu'il s'éloigne de la barre.
+  let suivi = 0;
+  ipc.action('barre.survol', { type: 'objet', champs: {} }, () => {
+    barreSurvolee = true;
+    feux();
+    clearInterval(suivi);
+    let dehors = 0;
+    suivi = setInterval(() => {
+      if (win.isDestroyed()) return clearInterval(suivi);
+      const c = screen.getCursorScreenPoint();
+      const b = win.getContentBounds();
+      const dedans = c.x >= b.x - 8 && c.x <= b.x + 256 && c.y >= b.y && c.y <= b.y + b.height;
+      dehors = dedans ? 0 : dehors + 1;
+      if (dehors < 3) return;
+      clearInterval(suivi);
+      barreSurvolee = false;
+      feux();
+      ui('barre-quitter');
+    }, 100);
+  });
   feux();
   // Les symboles des boutons suivent le thème clair / sombre.
   if (process.platform !== 'darwin') {
@@ -104,7 +128,7 @@ function creerFenetre() {
     });
   }
   etat.ecouter((d) => {
-    if (d.type === 'settings:changed' && 'barreRepliee' in d.patch) feux();
+    if (d.type === 'settings:changed' && ('barreRepliee' in d.patch || 'barreMasquee' in d.patch)) feux();
   });
   win.once('ready-to-show', () => win.show());
   win.loadURL(URL_SHELL);

@@ -64,7 +64,8 @@ function construire({ agir, ui, onglets, etat }) {
         { label: t('Zoom arrière'), accelerator: 'CmdOrCtrl+-', click: () => agir('page.zoom', { sens: 'moins' }) },
         { label: t('Taille réelle'), accelerator: 'CmdOrCtrl+0', click: () => agir('page.zoom', { sens: 'normal' }) },
         { type: 'separator' },
-        { label: t('Replier la barre latérale'), accelerator: 'CmdOrCtrl+S', click: () => ui('replier') },
+        { label: t('Masquer la barre latérale'), accelerator: 'CmdOrCtrl+S', click: () => ui('masquer') },
+        { label: t('Réduire la barre latérale'), accelerator: 'CmdOrCtrl+Shift+S', click: () => ui('replier') },
         { label: t('Outils de développement'), accelerator: mac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I', click: devtools },
         { type: 'separator' },
         { role: 'togglefullscreen', label: t('Plein écran') }
