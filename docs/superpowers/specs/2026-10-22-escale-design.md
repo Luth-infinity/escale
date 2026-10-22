@@ -291,7 +291,10 @@ Le risque n°1 d'un navigateur Electron, c'est un **Chromium en retard** : chaqu
 
 ### 9.10 Livraison et chaîne d'approvisionnement
 
-- **Signature du code et notarisation** : Apple Developer ID + notarisation sur macOS, signature Authenticode sur Windows. Pour un navigateur, ce n'est pas négociable : sans signature, les mises à jour automatiques macOS ne fonctionnent pas et l'utilisateur apprend à contourner Gatekeeper. **Coût** : 99 $/an chez Apple, et un certificat Windows (≈ 200 à 400 €/an, ou Azure Trusted Signing ≈ 10 $/mois). **Décision à prendre par l'utilisateur.**
+- **Signature du code et notarisation** : Apple Developer ID + notarisation sur macOS, signature Authenticode sur Windows. Pour un navigateur, ce n'est pas négociable : sans signature, les mises à jour automatiques macOS ne fonctionnent pas et l'utilisateur apprend à contourner Gatekeeper. **Coût** : 99 $/an chez Apple, et un certificat Windows (≈ 200 à 400 €/an, ou Azure Trusted Signing ≈ 10 $/mois). **Décision du 22/10 : reportée à la première release publique.** Jusque-là :
+  - builds signés ad hoc (`signingIdentity: "-"`) sur macOS, non signés sur Windows ;
+  - pas de mise à jour automatique silencieuse sur macOS : un bandeau dans l'app signale la nouvelle version et ouvre la page de téléchargement, comme dans Hublink ;
+  - la signature et la notarisation sont une **condition bloquante** de la première release publique, inscrite dans le plan.
 - Mises à jour par HTTPS avec vérification d'intégrité (sha512 + signature du paquet).
 - Dépendances : versions figées (`package-lock.json`), `npm audit` et Dependabot sur le dépôt, revue de chaque nouvelle dépendance. Le moins de dépendances possible.
 - Build reproductible en CI (GitHub Actions), artefacts publiés depuis la CI et non depuis un poste local.
