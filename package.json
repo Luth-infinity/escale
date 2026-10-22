@@ -7,6 +7,37 @@
   "author": "Luth",
   "private": true,
   "scripts": {
-    "test": "node --test \"test/**/*.test.js\""
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-port 5373 && electron . --dev\"",
+    "build": "vite build",
+    "start": "npm run build && electron .",
+    "test": "node --test \"test/**/*.test.js\"",
+    "typecheck": "tsc --noEmit",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "devDependencies": {
+    "@electron/fuses": "^2.0.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "concurrently": "^10.0.5",
+    "electron": "41.10.6",
+    "electron-builder": "^26.0.12",
+    "lucide-react": "^1.33.0",
+    "motion": "^12.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "wait-port": "^1.1.0"
+  },
+  "dependencies": {
+    "electron-chrome-extensions": "4.9.0",
+    "electron-chrome-web-store": "0.13.0"
   }
 }

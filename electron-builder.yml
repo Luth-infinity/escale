@@ -1,0 +1,53 @@
+appId: com.luthinfinity.escale
+productName: Escale
+copyright: Copyright © 2026 Luth
+
+directories:
+  output: release
+  buildResources: build
+
+# Le renderer est bundlé par Vite ; seules les libs d'extensions sont chargées
+# par le process principal depuis node_modules.
+files:
+  - src/main/**/*
+  - src/preload/**/*
+  - src/renderer/dist/**/*
+  - package.json
+  - '!**/*.map'
+
+asar: true
+
+# Fuses verrouillés après l'empaquetage, avant la signature (scripts/fuses.js).
+afterPack: scripts/fuses.js
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64]
+  darkModeSupport: true
+  # Signature ad hoc tant que la signature Developer ID est reportée (spec §9.10).
+  # Runtime renforcé gardé ; en ad hoc il exige disable-library-validation, sinon
+  # macOS refuse de charger les frameworks d'Electron au lancement.
+  identity: '-'
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: true
+  perMachine: false
+  artifactName: ${productName}-Setup-${version}-${arch}.${ext}
+
+# Le NSIS par défaut n'a qu'un makensis Intel : sur un Mac sans Rosetta, la
+# construction Windows échoue (erreur -86). Le 1.2.1 en a un pour Apple Silicon.
+toolsets:
+  nsis: "1.2.1"
