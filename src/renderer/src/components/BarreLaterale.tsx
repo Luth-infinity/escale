@@ -11,6 +11,7 @@ import { Liste } from './Liste';
 import { SelecteurEspaces, EnTeteEspace } from './SelecteurEspaces';
 import { BandeauMaj } from './BandeauMaj';
 import { Logo } from './Logo';
+import { TelechargementsVideo } from './YouTube';
 
 export const LARGEUR = 240;
 export const LARGEUR_RAIL = 56;
@@ -163,6 +164,7 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
           </motion.div>
         </AnimatePresence>
       </div>
+      <TelechargementsVideo rail={rail} />
       <BandeauMaj rail={rail} />
       <SelecteurEspaces rail={rail} />
     </motion.aside>

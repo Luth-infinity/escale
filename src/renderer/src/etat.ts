@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { Delta, Etat, Nav, Question } from './types';
+import type { Delta, Etat, Nav, Question, VideoEtat } from './types';
 
 /**
  * L'état côté shell : un état complet au démarrage, puis des deltas. Chaque
@@ -8,9 +8,12 @@ import type { Delta, Etat, Nav, Question } from './types';
  */
 type Vivant = { vivant: boolean; son: boolean };
 type MiseAJour = { version: string; url: string };
-type Store = { etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivant>; maj: MiseAJour | null; questions: Question[] };
+type Store = {
+  etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivant>; maj: MiseAJour | null; questions: Question[];
+  videos: VideoEtat[];
+};
 
-let store: Store = { etat: null, nav: null, vivants: {}, maj: null, questions: [] };
+let store: Store = { etat: null, nav: null, vivants: {}, maj: null, questions: [], videos: [] };
 const ecouteurs = new Set<() => void>();
 const commandes = new Set<(nom: string, id?: string, t?: number) => void>();
 const transitions = new Set<(de: string, vers: string | null) => void>();
@@ -64,6 +67,14 @@ export async function demarrer() {
     }
     if (d.type === 'tab:etat') return publier({ ...store, vivants: { ...store.vivants, [d.id]: { vivant: d.vivant, son: d.son } } });
     if (d.type === 'update:available') return publier({ ...store, maj: { version: d.version, url: d.url } });
+    if (d.type === 'video:etat') {
+      const { type: _t, ...v } = d;
+      const avant = store.videos.find((x) => x.id === v.id);
+      // Un « annulé » n'a plus rien à montrer : la ligne s'en va.
+      if (v.etat === 'annule') return publier({ ...store, videos: store.videos.filter((x) => x.id !== v.id) });
+      const suivant = avant ? store.videos.map((x) => (x.id === v.id ? { ...x, ...v } : x)) : [...store.videos, v];
+      return publier({ ...store, videos: suivant });
+    }
     if (d.type === 'dialogue:ouvrir') {
       const { type: _t, ...q } = d;
       return publier({ ...store, questions: [...store.questions, q] });
@@ -90,6 +101,10 @@ export function useEtat<T>(selection: (e: Etat) => T): T {
   return React.useSyncExternalStore(abonner, () => selection(store.etat as Etat));
 }
 export const useMiseAJour = () => React.useSyncExternalStore(abonner, () => store.maj);
+export const useVideos = () => React.useSyncExternalStore(abonner, () => store.videos);
+export function oublierVideo(id: string) {
+  publier({ ...store, videos: store.videos.filter((v) => v.id !== id) });
+}
 /** La question en tête de file : une seule modale à la fois, les suivantes attendent. */
 export const useQuestion = () => React.useSyncExternalStore(abonner, () => store.questions[0] ?? null);
 export function repondre(id: string, oui: boolean) {

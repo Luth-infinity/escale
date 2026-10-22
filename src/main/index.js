@@ -17,6 +17,7 @@ const updates = require('./updates');
 const i18n = require('./i18n');
 const dialogue = require('./dialogue');
 const importFirefox = require('./import-firefox');
+const videos = require('./videos');
 
 // Le mode dev se déduit de l'empaquetage seul, jamais d'un argument.
 const isDev = !app.isPackaged;
@@ -152,6 +153,14 @@ app.whenReady().then(() => {
   for (const [nom, { schema, fn }] of Object.entries(ACTIONS)) ipc.action(nom, schema, (p) => fn(contexte, p));
   menusContextuels.declarer({ action: ipc.action, agir, ui, etat, fenetre: () => win });
   ipc.action('app.infos', { type: 'objet', champs: {} }, () => ({ version: app.getVersion() }));
+  // Vidéos YouTube (videos.js) : le menu des formats s'ouvre depuis la bulle de
+  // la page (ambiance.js) ; la progression arrive au shell en deltas `video:etat`.
+  ipc.action('video.annuler', { type: 'objet', champs: { id: { type: 'string', max: 20 } } }, ({ id }) => videos.annuler(id));
+  ipc.action('video.montrer', { type: 'objet', champs: { id: { type: 'string', max: 20 } } }, ({ id }) => {
+    const chemin = videos.cheminFini(id);
+    if (chemin) shell.showItemInFolder(chemin);
+    else shell.openPath(app.getPath('downloads'));
+  });
   // Les sessions de Firefox, dans l'espace actif (voir import-firefox.js). Le
   // bouton des réglages, qui dit ce qu'il fait, vaut confirmation.
   ipc.action('import.firefox', { type: 'objet', champs: {} }, async () => {

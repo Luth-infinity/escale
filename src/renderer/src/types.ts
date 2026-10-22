@@ -10,6 +10,7 @@ export type Onglet = {
 export type Reglages = {
   fermetureAutoHeures: number; veilleMinutes: number; bloqueur: boolean; suggestions: boolean; moteur: string;
   langue: string; theme: string; barreRepliee: boolean; zoom: Record<string, number>; derniereVersionVue: string | null;
+  ambiance: boolean;
 };
 export type Etat = {
   version: 1; espaces: Espace[]; dossiers: Dossier[]; onglets: Onglet[]; espaceActif: string; ongletActif: string | null;
@@ -35,7 +36,14 @@ export type Delta =
   | { type: 'ui:commande'; nom: string; id?: string; t?: number }
   | { type: 'page:transition'; de: string; vers: string | null }
   | { type: 'update:available'; version: string; url: string; page: string; notes: string }
-  | ({ type: 'dialogue:ouvrir' } & Question);
+  | ({ type: 'dialogue:ouvrir' } & Question)
+  | ({ type: 'video:etat' } & VideoEtat);
+
+/** Un téléchargement de vidéo YouTube (src/main/videos.js). */
+export type VideoEtat = {
+  id: string; nom: string; recu?: number; total?: number;
+  etat: 'prepare' | 'en-cours' | 'fini' | 'echec' | 'annule'; erreur?: string; detail?: string;
+};
 
 /** Une question du process principal, posée en modale (src/main/dialogue.js). */
 export type Question = {

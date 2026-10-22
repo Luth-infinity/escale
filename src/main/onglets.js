@@ -5,6 +5,9 @@ const extensions = require('./extensions');
 const adblock = require('./adblock');
 const importFirefox = require('./import-firefox');
 const ua = require('./ua');
+const ambiance = require('./ambiance');
+const videos = require('./videos');
+const { t } = require('./i18n');
 const favicon = require('./favicon');
 const menucontextuel = require('./menucontextuel');
 const securite = require('./securite-pages');
@@ -51,6 +54,11 @@ function init(options) {
   historique = options.historique;
   dev = options.dev;
   etat.ecouter(surDelta);
+  // Basculer l'ambiance prévient aussitôt les pages YouTube ouvertes.
+  etat.ecouter((d) => {
+    if (d.type !== 'settings:changed' || !('ambiance' in d.patch)) return;
+    for (const vue of vues.values()) ambiance.appliquer(vue.webContents, d.patch.ambiance);
+  });
   extensions.definirPont({
     creerOnglet: async (details, ses) => {
       const espace = etat.lire().espaces.find((e) => e.partition === partitionDe(ses));
@@ -158,6 +166,12 @@ function cabler(vue, id) {
   securite.brancherPage(wc, { fenetre: () => fenetre, exceptionsHttp });
   importFirefox.surveillerRefusGoogle(wc);
   ua.suivre(wc);
+  ambiance.brancher(wc, {
+    actif: () => etat.reglages().ambiance,
+    libelles: () => ({ ambiance: t('Ambiance'), telecharger: t('Télécharger') }),
+    basculer: () => etat.regler({ ambiance: !etat.reglages().ambiance }),
+    telecharger: (page) => videos.ouvrirMenu(page, fenetre, (e) => ipc.emettre({ type: 'video:etat', ...e }))
+  });
 
   wc.on('page-title-updated', (_e, titre) => meta(id, { titre }));
   wc.on('page-favicon-updated', async (_e, icones) => {
