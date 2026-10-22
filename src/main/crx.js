@@ -134,9 +134,72 @@ function verifier(buffer, { id: attendu } = {}) {
     if (!developpeur) return { ok: false, raison: 'preuve du développeur absente' };
     if (!webStore) return { ok: false, raison: 'preuve du Chrome Web Store absente' };
     if (attendu && attendu !== id) return { ok: false, raison: `identifiant ${id} au lieu de ${attendu}` };
+    const zip = inspecterZip(archive);
+    if (!zip.ok) return zip;
     return { ok: true, id };
   } catch (e) {
     return { ok: false, raison: e.message };
+  }
+}
+
+// ---- inspection du zip, avant que adm-zip ne le décompresse ----
+// adm-zip (dépendance de electron-chrome-web-store) a des failles connues sans
+// correctif : liens symboliques suivis à l'extraction, bombes de
+// décompression, bits SUID conservés, doublons. On refuse ces archives avant.
+const TAILLE_MAX = 512 * 1024 * 1024;
+const ENTREES_MAX = 20000;
+const RATIO_MAX = 1000;
+
+function inspecterZip(zip) {
+  try {
+    let fin = -1;
+    for (let i = zip.length - 22; i >= Math.max(0, zip.length - 22 - 0xffff); i--) {
+      if (zip.readUInt32LE(i) === 0x06054b50) {
+        fin = i;
+        break;
+      }
+    }
+    if (fin < 0) return { ok: false, raison: 'fin de zip introuvable' };
+    const n = zip.readUInt16LE(fin + 10);
+    const debutCd = zip.readUInt32LE(fin + 16);
+    if (n === 0xffff || debutCd === 0xffffffff) return { ok: false, raison: 'zip64 refusé' };
+    if (n > ENTREES_MAX) return { ok: false, raison: 'trop de fichiers' };
+    const vus = new Set();
+    let total = 0;
+    let pos = debutCd;
+    for (let k = 0; k < n; k++) {
+      if (zip.readUInt32LE(pos) !== 0x02014b50) return { ok: false, raison: 'répertoire central corrompu' };
+      const systeme = zip.readUInt16LE(pos + 4) >> 8;
+      const methode = zip.readUInt16LE(pos + 10);
+      const compresse = zip.readUInt32LE(pos + 20);
+      const taille = zip.readUInt32LE(pos + 24);
+      const lgNom = zip.readUInt16LE(pos + 28);
+      const lgExtra = zip.readUInt16LE(pos + 30);
+      const lgComm = zip.readUInt16LE(pos + 32);
+      const attributs = zip.readUInt32LE(pos + 38);
+      const nom = zip.toString('utf8', pos + 46, pos + 46 + lgNom);
+      pos += 46 + lgNom + lgExtra + lgComm;
+
+      if (!nom || nom.startsWith('/') || nom.includes('\\') || /^[a-z]:/i.test(nom) || nom.split('/').includes('..') || nom.includes('\0')) {
+        return { ok: false, raison: `chemin refusé : ${nom}` };
+      }
+      const cle = nom.toLowerCase();
+      if (vus.has(cle)) return { ok: false, raison: `fichier en double : ${nom}` };
+      vus.add(cle);
+      if (systeme === 3) {
+        const mode = attributs >>> 16;
+        if ((mode & 0o170000) === 0o120000) return { ok: false, raison: `lien symbolique : ${nom}` };
+        if (mode & 0o6000) return { ok: false, raison: `bit SUID/SGID : ${nom}` };
+      }
+      const dossier = nom.endsWith('/');
+      if (!dossier && methode !== 0 && taille === 0 && compresse > 16) return { ok: false, raison: `taille déclarée nulle : ${nom}` };
+      if (compresse > 0 && taille / compresse > RATIO_MAX) return { ok: false, raison: `taux de compression suspect : ${nom}` };
+      total += taille;
+      if (total > TAILLE_MAX) return { ok: false, raison: 'archive trop volumineuse une fois décompressée' };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, raison: `zip illisible : ${e.message}` };
   }
 }
 
@@ -159,4 +222,4 @@ function retirerPreuve(buffer, empreinte) {
   return Buffer.concat([tete, nouvel, archive]);
 }
 
-module.exports = { verifier, identifiant, retirerPreuve, EMPREINTE_WEB_STORE };
+module.exports = { verifier, identifiant, retirerPreuve, inspecterZip, decouper, EMPREINTE_WEB_STORE };

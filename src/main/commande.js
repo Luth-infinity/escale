@@ -60,7 +60,7 @@ function resoudre(texte, etat, historique, moteur = 'google') {
   const m = /^(\S+)\s+(.+)$/.exec(brut);
   if (m && RACCOURCIS[m[1].toLowerCase()]) {
     const r = RACCOURCIS[m[1].toLowerCase()];
-    return [{ type: 'recherche', titre: `Rechercher « ${m[2]} » sur ${r.nom}`, url: r.url(m[2]) }];
+    return [{ type: 'recherche', titre: `Rechercher « ${m[2]} » sur ${r.nom}`, url: r.url(m[2]), requete: m[2], site: r.nom }];
   }
 
   const resultats = [];
@@ -89,7 +89,7 @@ function resoudre(texte, etat, historique, moteur = 'google') {
   }
 
   // La recherche reste toujours proposée, en dernier.
-  const recherche = { type: 'recherche', titre: `Rechercher « ${brut} »`, url: (MOTEURS[moteur] || MOTEURS.google)(brut) };
+  const recherche = { type: 'recherche', titre: `Rechercher « ${brut} »`, url: (MOTEURS[moteur] || MOTEURS.google)(brut), requete: brut };
   return [...resultats.slice(0, MAX - 1), recherche];
 }
 

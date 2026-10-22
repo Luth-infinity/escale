@@ -3,12 +3,24 @@ import { motion } from 'motion/react';
 import { ArrowRight, Clock, Globe, Pin, Search, SquareStack } from 'lucide-react';
 import { agir } from '@/etat';
 import { useMouvement } from '@/lib/ressorts';
+import { useModalePage } from '@/lib/modale';
 import { cn } from '@/lib/utils';
+import { t } from '@/lib/i18n';
 
-type Resultat = { type: 'onglet' | 'epingle' | 'historique' | 'url' | 'recherche' | 'suggestion'; titre: string; url?: string; id?: string };
+type Resultat = {
+  type: 'onglet' | 'epingle' | 'historique' | 'url' | 'recherche' | 'suggestion'; titre: string; url?: string; id?: string; requete?: string; site?: string;
+};
+
+// Les recherches sont titrées ici, dans la langue du shell.
+const titre = (r: Resultat) =>
+  r.type === 'recherche' && r.requete !== undefined
+    ? r.site
+      ? t('Rechercher « {q} » sur {site}', { q: r.requete, site: r.site })
+      : t('Rechercher « {q} »', { q: r.requete })
+    : r.titre;
 
 const ICONES = { onglet: SquareStack, epingle: Pin, historique: Clock, url: Globe, recherche: Search, suggestion: Search };
-const LIBELLES = { onglet: 'Aller à l’onglet', epingle: 'Aller à l’onglet', historique: 'Ouvrir', url: 'Ouvrir', recherche: 'Rechercher', suggestion: 'Rechercher' };
+const LIBELLES = { onglet: "Aller à l'onglet", epingle: "Aller à l'onglet", historique: 'Ouvrir', url: 'Ouvrir', recherche: 'Rechercher', suggestion: 'Rechercher' };
 const DELAI_SUGGESTIONS = 120;
 
 /**
@@ -22,23 +34,8 @@ export function BarreCommande({ nouvelOnglet, depuis, fermer }: { nouvelOnglet: 
   const [locaux, setLocaux] = React.useState<Resultat[]>([]);
   const [web, setWeb] = React.useState<string[]>([]);
   const [actif, setActif] = React.useState(0);
-  const [fond, setFond] = React.useState<string | null>(null);
   const champ = React.useRef<HTMLInputElement>(null);
-
-  // La page passe en image, puis la vraie vue est masquée.
-  React.useEffect(() => {
-    let vivant = true;
-    agir('page.capture').then((img) => {
-      if (!vivant) return;
-      setFond((img as string) || null);
-      agir('layout.overlay', { actif: true });
-    });
-    return () => {
-      vivant = false;
-      agir('layout.overlay', { actif: false });
-    };
-  }, []);
-
+  const fond = useModalePage();
   React.useLayoutEffect(() => {
     champ.current?.focus();
     // Latence touche → première image (cible < 100 ms).
@@ -84,7 +81,7 @@ export function BarreCommande({ nouvelOnglet, depuis, fermer }: { nouvelOnglet: 
       />
       <motion.div
         role="dialog"
-        aria-label="Barre de commande"
+        aria-label={t('Barre de commande')}
         initial={{ opacity: 0, scale: 0.98, y: -4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={transition}
@@ -96,7 +93,7 @@ export function BarreCommande({ nouvelOnglet, depuis, fermer }: { nouvelOnglet: 
             ref={champ}
             value={texte}
             spellCheck={false}
-            placeholder={nouvelOnglet ? 'Rechercher ou saisir une adresse' : 'Aller à une adresse ou un onglet'}
+            placeholder={nouvelOnglet ? t('Rechercher ou saisir une adresse') : t('Aller à une adresse ou un onglet')}
             onChange={(e) => setTexte(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Escape') fermer();
@@ -132,13 +129,13 @@ export function BarreCommande({ nouvelOnglet, depuis, fermer }: { nouvelOnglet: 
                     <motion.div layoutId="commande-active" transition={transition} className="absolute inset-0 rounded-lg bg-shell-hover" />
                   )}
                   <Icone className={cn('relative size-4 shrink-0', i === actif ? 'text-accent-escale' : 'text-shell-muted')} />
-                  <span className="relative min-w-0 flex-1 truncate">{r.titre}</span>
+                  <span className="relative min-w-0 flex-1 truncate">{titre(r)}</span>
                   {r.url && r.type !== 'suggestion' && r.type !== 'recherche' && (
                     <span className="relative max-w-[40%] shrink-0 truncate text-[12px] text-shell-muted">{r.url.replace(/^https?:\/\/(www\.)?/, '')}</span>
                   )}
                   {i === actif && (
                     <span className="relative flex shrink-0 items-center gap-1 text-[11.5px] text-shell-muted">
-                      {LIBELLES[r.type]} <ArrowRight className="size-3" />
+                      {t(LIBELLES[r.type])} <ArrowRight className="size-3" />
                     </span>
                   )}
                 </motion.li>

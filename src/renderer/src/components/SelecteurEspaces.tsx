@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Plus } from 'lucide-react';
 import { agir, commandeLocale, useCommande, useEtat } from '@/etat';
 import { cn } from '@/lib/utils';
+import { t } from '@/lib/i18n';
 import { ChampNom } from './LigneDossier';
 import { useMouvement } from '@/lib/ressorts';
 
@@ -77,9 +78,9 @@ export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
       ))}
       {!rail && <span className="flex-1" />}
       <button
-        title="Nouvel espace"
+        title={t('Nouvel espace')}
         onClick={async () => {
-          const id = (await agir('espace.creer', { nom: `Espace ${espaces.length + 1}` })) as string;
+          const id = (await agir('espace.creer', { nom: t('Espace {n}', { n: espaces.length + 1 }) })) as string;
           commandeLocale('renommer-espace', id);
         }}
         className="grid size-7 place-items-center rounded-md text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"

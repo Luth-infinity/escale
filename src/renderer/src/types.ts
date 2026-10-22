@@ -9,7 +9,7 @@ export type Onglet = {
 };
 export type Reglages = {
   fermetureAutoHeures: number; veilleMinutes: number; bloqueur: boolean; suggestions: boolean; moteur: string;
-  langue: string; theme: string; barreRepliee: boolean; zoom: Record<string, number>;
+  langue: string; theme: string; barreRepliee: boolean; zoom: Record<string, number>; derniereVersionVue: string | null;
 };
 export type Etat = {
   version: 1; espaces: Espace[]; dossiers: Dossier[]; onglets: Onglet[]; espaceActif: string; ongletActif: string | null;
@@ -33,7 +33,8 @@ export type Delta =
   | ({ type: 'nav:state' } & Nav)
   | { type: 'settings:changed'; patch: Partial<Reglages> }
   | { type: 'ui:commande'; nom: string; id?: string; t?: number }
-  | { type: 'page:transition'; de: string; vers: string | null };
+  | { type: 'page:transition'; de: string; vers: string | null }
+  | { type: 'update:available'; version: string; url: string; page: string; notes: string };
 
 declare module 'react' {
   namespace JSX {

@@ -43,3 +43,64 @@ test('refuse un CRX3 sans la preuve du Web Store', () => {
   assert.strictEqual(r.ok, false);
   assert.match(r.raison, /Web Store/);
 });
+
+// Un zip minimal (méthode « stocké ») : [{ nom, contenu, mode?, declare? }].
+function zip(entrees) {
+  const locaux = [];
+  const centraux = [];
+  let decalage = 0;
+  for (const e of entrees) {
+    const nom = Buffer.from(e.nom);
+    const data = Buffer.from(e.contenu ?? 'x');
+    const l = Buffer.alloc(30);
+    l.writeUInt32LE(0x04034b50, 0);
+    l.writeUInt16LE(e.methode ?? 0, 8);
+    l.writeUInt32LE(data.length, 18);
+    l.writeUInt32LE(e.declare ?? data.length, 22);
+    l.writeUInt16LE(nom.length, 26);
+    locaux.push(l, nom, data);
+    const c = Buffer.alloc(46);
+    c.writeUInt32LE(0x02014b50, 0);
+    c.writeUInt16LE((3 << 8) | 20, 4); // créé sous Unix
+    c.writeUInt16LE(e.methode ?? 0, 10);
+    c.writeUInt32LE(data.length, 20);
+    c.writeUInt32LE(e.declare ?? data.length, 24);
+    c.writeUInt16LE(nom.length, 28);
+    c.writeUInt32LE(((e.mode ?? 0o100644) << 16) >>> 0, 38);
+    c.writeUInt32LE(decalage, 42);
+    centraux.push(c, nom);
+    decalage += 30 + nom.length + data.length;
+  }
+  const cd = Buffer.concat(centraux);
+  const fin = Buffer.alloc(22);
+  fin.writeUInt32LE(0x06054b50, 0);
+  fin.writeUInt16LE(entrees.length, 8);
+  fin.writeUInt16LE(entrees.length, 10);
+  fin.writeUInt32LE(cd.length, 12);
+  fin.writeUInt32LE(decalage, 16);
+  return Buffer.concat([...locaux, cd, fin]);
+}
+
+test('inspecterZip accepte l’archive d’un vrai CRX et un zip sain', () => {
+  const { archive } = crx.decouper(vrai());
+  assert.deepStrictEqual(crx.inspecterZip(archive), { ok: true });
+  assert.deepStrictEqual(crx.inspecterZip(zip([{ nom: 'manifest.json' }, { nom: 'js/a.js' }])), { ok: true });
+});
+
+test('inspecterZip refuse traversée, chemin absolu, lien symbolique, SUID, doublon, bombe', () => {
+  const cas = {
+    traversee: [{ nom: '../../.ssh/authorized_keys' }],
+    absolu: [{ nom: '/etc/hosts' }],
+    windows: [{ nom: 'C:\\Windows\\x.dll' }],
+    lien: [{ nom: 'lien', mode: 0o120777, contenu: '/etc/passwd' }],
+    suid: [{ nom: 'outil', mode: 0o104755 }],
+    doublon: [{ nom: 'a.js' }, { nom: 'A.js' }],
+    bombe: [{ nom: 'gros', declare: 0x7fffffff }],
+    tailleNulle: [{ nom: 'z', methode: 8, contenu: 'x'.repeat(64), declare: 0 }]
+  };
+  for (const [nom, entrees] of Object.entries(cas)) {
+    const r = crx.inspecterZip(zip(entrees));
+    assert.strictEqual(r.ok, false, nom);
+  }
+  assert.strictEqual(crx.inspecterZip(Buffer.from('pas un zip')).ok, false);
+});

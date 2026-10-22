@@ -6,6 +6,7 @@ import type { Ligne } from '@/lib/aplatir';
 import { cibleDepot, sansElement } from '@/lib/depot';
 import { useMouvement } from '@/lib/ressorts';
 import { cn } from '@/lib/utils';
+import { t } from '@/lib/i18n';
 import { HAUTEUR_LIGNE, LigneOnglet } from './LigneOnglet';
 import { LigneDossier } from './LigneDossier';
 
@@ -152,14 +153,14 @@ export function Liste({ lignes, enRenommage, finRenommage, nouvelOnglet, rail }:
     ) : (
       <button
         onClick={nouvelOnglet}
-        title="Nouvel onglet"
+        title={t('Nouvel onglet')}
         className={cn(
           'flex h-full w-full items-center gap-2 rounded-md text-[13px] text-shell-muted transition-colors duration-100 hover:bg-shell-hover hover:text-shell-foreground',
           rail ? 'justify-center' : 'px-2'
         )}
       >
         <Plus className="size-4 shrink-0" />
-        {!rail && 'Nouvel onglet'}
+        {!rail && t('Nouvel onglet')}
       </button>
     );
 

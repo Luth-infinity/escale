@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
 import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { t } from '@/lib/i18n';
 import { agir } from '@/etat';
 import { useMouvement } from '@/lib/ressorts';
 
@@ -24,7 +25,7 @@ export function BarreRecherche({ fermer }: { fermer: () => void }) {
       <input
         autoFocus
         value={texte}
-        placeholder="Rechercher dans la page"
+        placeholder={t('Rechercher dans la page')}
         onChange={(e) => {
           setTexte(e.target.value);
           agir('page.chercher', { texte: e.target.value });
@@ -35,13 +36,13 @@ export function BarreRecherche({ fermer }: { fermer: () => void }) {
         }}
         className="h-7 w-64 rounded-md bg-shell-input px-2 text-[13px] outline-none focus:ring-2 focus:ring-accent-escale/50"
       />
-      <button title="Précédent" onClick={() => chercher(true)} className="grid size-7 place-items-center rounded-md text-shell-muted hover:bg-shell-hover">
+      <button title={t('Précédent')} onClick={() => chercher(true)} className="grid size-7 place-items-center rounded-md text-shell-muted hover:bg-shell-hover">
         <ChevronUp className="size-4" />
       </button>
-      <button title="Suivant" onClick={() => chercher(false)} className="grid size-7 place-items-center rounded-md text-shell-muted hover:bg-shell-hover">
+      <button title={t('Suivant')} onClick={() => chercher(false)} className="grid size-7 place-items-center rounded-md text-shell-muted hover:bg-shell-hover">
         <ChevronDown className="size-4" />
       </button>
-      <button title="Fermer" onClick={fermer} className="ml-auto grid size-7 place-items-center rounded-md text-shell-muted hover:bg-shell-hover">
+      <button title={t('Fermer')} onClick={fermer} className="ml-auto grid size-7 place-items-center rounded-md text-shell-muted hover:bg-shell-hover">
         <X className="size-4" />
       </button>
     </motion.div>

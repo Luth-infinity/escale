@@ -6,8 +6,10 @@ import { aplatir } from '@/lib/aplatir';
 import { decouperAdresse } from '@/lib/adresse';
 import { RESSORT, useMouvement } from '@/lib/ressorts';
 import { cn } from '@/lib/utils';
+import { t } from '@/lib/i18n';
 import { Liste } from './Liste';
 import { SelecteurEspaces, EnTeteEspace } from './SelecteurEspaces';
+import { BandeauMaj } from './BandeauMaj';
 
 export const LARGEUR = 240;
 export const LARGEUR_RAIL = 56;
@@ -39,7 +41,7 @@ function Adresse({ ouvrir }: { ouvrir: () => void }) {
       className="no-drag mx-2 flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-shell-input px-2.5 text-left text-[12.5px] transition-colors duration-100 hover:bg-shell-active"
     >
       {url && !securise && <span className="shrink-0 text-[11px] font-medium text-shell-muted">http</span>}
-      {url && securise && <Lock className="size-3 shrink-0 text-shell-muted" aria-label="Connexion sécurisée" />}
+      {url && securise && <Lock className="size-3 shrink-0 text-shell-muted" aria-label={t('Connexion sécurisée')} />}
       <span className="min-w-0 flex-1 truncate">
         {url ? (
           <>
@@ -47,7 +49,7 @@ function Adresse({ ouvrir }: { ouvrir: () => void }) {
             <span className="text-shell-foreground">{domaine}</span>
           </>
         ) : (
-          <span className="text-shell-muted">Rechercher ou saisir une adresse</span>
+          <span className="text-shell-muted">{t('Rechercher ou saisir une adresse')}</span>
         )}
       </span>
     </button>
@@ -111,13 +113,13 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
       <div className={cn('drag flex h-[52px] shrink-0 items-center justify-end gap-0.5 pr-2', mac && !rail && 'pl-[86px]')}>
         {!rail && (
           <>
-            <BoutonNav titre="Précédent" desactive={!nav?.peutReculer} onClick={() => agir('nav.precedent')}>
+            <BoutonNav titre={t('Précédent')} desactive={!nav?.peutReculer} onClick={() => agir('nav.precedent')}>
               <ArrowLeft className="size-4" />
             </BoutonNav>
-            <BoutonNav titre="Suivant" desactive={!nav?.peutAvancer} onClick={() => agir('nav.suivant')}>
+            <BoutonNav titre={t('Suivant')} desactive={!nav?.peutAvancer} onClick={() => agir('nav.suivant')}>
               <ArrowRight className="size-4" />
             </BoutonNav>
-            <BoutonNav titre={nav?.chargement ? 'Arrêter' : 'Recharger'} onClick={() => agir(nav?.chargement ? 'nav.arreter' : 'nav.recharger')}>
+            <BoutonNav titre={nav?.chargement ? t('Arrêter') : t('Recharger')} onClick={() => agir(nav?.chargement ? 'nav.arreter' : 'nav.recharger')}>
               {nav?.chargement ? <X className="size-4" /> : <RotateCw className="size-3.5" />}
             </BoutonNav>
           </>
@@ -158,6 +160,7 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
           </motion.div>
         </AnimatePresence>
       </div>
+      <BandeauMaj rail={rail} />
       <SelecteurEspaces rail={rail} />
     </motion.aside>
   );

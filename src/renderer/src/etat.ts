@@ -7,9 +7,10 @@ import type { Delta, Etat, Nav } from './types';
  * onglet inchangé reçoit la même référence, et sa ligne ne se rerend pas.
  */
 type Vivant = { vivant: boolean; son: boolean };
-type Store = { etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivant> };
+type MiseAJour = { version: string; url: string };
+type Store = { etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivant>; maj: MiseAJour | null };
 
-let store: Store = { etat: null, nav: null, vivants: {} };
+let store: Store = { etat: null, nav: null, vivants: {}, maj: null };
 const ecouteurs = new Set<() => void>();
 const commandes = new Set<(nom: string, id?: string, t?: number) => void>();
 const transitions = new Set<(de: string, vers: string | null) => void>();
@@ -62,6 +63,7 @@ export async function demarrer() {
       return publier({ ...store, nav });
     }
     if (d.type === 'tab:etat') return publier({ ...store, vivants: { ...store.vivants, [d.id]: { vivant: d.vivant, son: d.son } } });
+    if (d.type === 'update:available') return publier({ ...store, maj: { version: d.version, url: d.url } });
     if (d.type === 'page:transition') {
       for (const f of transitions) f(d.de, d.vers);
       return;
@@ -83,6 +85,7 @@ const abonner = (f: () => void) => {
 export function useEtat<T>(selection: (e: Etat) => T): T {
   return React.useSyncExternalStore(abonner, () => selection(store.etat as Etat));
 }
+export const useMiseAJour = () => React.useSyncExternalStore(abonner, () => store.maj);
 export const useNav = () => React.useSyncExternalStore(abonner, () => store.nav);
 export const useVivant = (id: string) => React.useSyncExternalStore(abonner, () => store.vivants[id]);
 export const lireEtat = () => store.etat as Etat;

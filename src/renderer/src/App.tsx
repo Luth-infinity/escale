@@ -1,11 +1,14 @@
 import * as React from 'react';
 import { AnimatePresence } from 'motion/react';
-import { agir, demarrer, useCommande, useEtat, useEtatPret } from './etat';
+import { agir, demarrer, lireEtat, useCommande, useEtat, useEtatPret } from './etat';
 import { teintes, useSyncedTheme } from './lib/theme';
 import { BarreLaterale } from './components/BarreLaterale';
 import { TransitionPage } from './components/TransitionPage';
 import { BarreCommande } from './components/BarreCommande';
 import { BarreRecherche } from './components/BarreRecherche';
+import { Reglages } from './components/Reglages';
+import { Nouveautes } from './components/Nouveautes';
+import { setLanguage } from './lib/i18n';
 
 /**
  * Le shell : la barre latérale à gauche, la page encadrée à droite. La page
@@ -14,8 +17,10 @@ import { BarreRecherche } from './components/BarreRecherche';
  */
 type Commande = { nouvelOnglet: boolean; depuis?: number } | null;
 
-function ZonePage({ commande, fermerCommande, recherche, fermerRecherche }: {
-  commande: Commande; fermerCommande: () => void; recherche: boolean; fermerRecherche: () => void;
+type Modale = { type: 'reglages' } | { type: 'nouveautes'; version: string; points: string[] } | null;
+
+function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale, fermerModale }: {
+  commande: Commande; fermerCommande: () => void; recherche: boolean; fermerRecherche: () => void; modale: Modale; fermerModale: () => void;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
   React.useLayoutEffect(() => {
@@ -45,6 +50,8 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche }: {
         <div ref={ref} id="zone-page" className="relative min-h-0 w-full flex-1 rounded-[10px]">
           <TransitionPage />
           {commande && <BarreCommande nouvelOnglet={commande.nouvelOnglet} depuis={commande.depuis} fermer={fermerCommande} />}
+          {!commande && modale?.type === 'reglages' && <Reglages fermer={fermerModale} />}
+          {!commande && modale?.type === 'nouveautes' && <Nouveautes version={modale.version} points={modale.points} fermer={fermerModale} />}
         </div>
       </div>
     </main>
@@ -69,7 +76,19 @@ function Shell() {
   useTeinteEspace(sombre);
   const [commande, setCommande] = React.useState<Commande>(null);
   const [recherche, setRecherche] = React.useState(false);
+  const [modale, setModale] = React.useState<Modale>(null);
+  // « Nouveautés » une fois par nouvelle version installée.
+  React.useEffect(() => {
+    (async () => {
+      const { version } = (await agir('app.infos')) as { version: string };
+      if (lireReglages().derniereVersionVue === version) return;
+      const notes = (await agir('maj.notes')) as { points?: string[] } | null;
+      if (notes?.points?.length) setModale({ type: 'nouveautes', version, points: notes.points });
+      else agir('reglages.modifier', { derniereVersionVue: version });
+    })();
+  }, []);
   useCommande((nom, _id, t) => {
+    if (nom === 'reglages') setModale({ type: 'reglages' });
     if (nom === 'nouvel-onglet') setCommande({ nouvelOnglet: true, depuis: t });
     if (nom === 'adresse') setCommande({ nouvelOnglet: false, depuis: t });
     if (nom === 'chercher') setRecherche(true);
@@ -83,15 +102,23 @@ function Shell() {
         fermerCommande={() => setCommande(null)}
         recherche={recherche}
         fermerRecherche={() => setRecherche(false)}
+        modale={modale}
+        fermerModale={() => setModale(null)}
       />
     </div>
   );
 }
 
+const lireReglages = () => lireEtat().reglages;
+
 export default function App() {
   const pret = useEtatPret();
+  const langue = useEtat((e) => e?.reglages.langue);
   React.useEffect(() => {
     demarrer();
   }, []);
-  return pret ? <Shell /> : null;
+  if (!pret) return null;
+  // La langue avant le rendu ; changer de langue remonte le shell entier.
+  setLanguage(langue);
+  return <Shell key={langue} />;
 }

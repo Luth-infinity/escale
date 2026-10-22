@@ -197,6 +197,19 @@ const ACTIONS = {
     fn: (ctx, rect) => ctx.onglets.zone(rect)
   },
   'layout.overlay': { schema: objet({ actif: OUI }), fn: (ctx, { actif }) => ctx.onglets.setOverlay(actif) },
+  'reglages.modifier': {
+    schema: objet({
+      theme: opt({ type: 'enum', valeurs: ['system', 'light', 'dark'] }),
+      langue: opt({ type: 'enum', valeurs: ['system', 'fr', 'en'] }),
+      moteur: opt({ type: 'enum', valeurs: Object.keys(MOTEURS) }),
+      suggestions: opt(OUI),
+      bloqueur: opt(OUI),
+      fermetureAutoHeures: opt({ type: 'enum', valeurs: [0, 6, 12, 24, 168] }),
+      veilleMinutes: opt({ type: 'enum', valeurs: [0, 10, 20, 60] }),
+      derniereVersionVue: opt({ type: 'string', max: 20 })
+    }),
+    fn: (ctx, patch) => ctx.etat.regler(patch)
+  },
   'barre.replier': { schema: objet({ oui: OUI }), fn: (ctx, { oui }) => ctx.etat.regler({ barreRepliee: oui }) }
 };
 

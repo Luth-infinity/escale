@@ -1,4 +1,4 @@
-const { app, BrowserWindow, nativeTheme, session, protocol } = require('electron');
+const { app, BrowserWindow, nativeTheme, session, protocol, shell } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { CHROME_UA } = require('./ua');
@@ -12,10 +12,13 @@ const menu = require('./menu');
 const menusContextuels = require('./menus-contextuels');
 const { ACTIONS } = require('./actions');
 const suggestions = require('./suggestions');
+const updates = require('./updates');
+const i18n = require('./i18n');
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const DEV_SERVER = 'http://localhost:5373/';
-const URL_SHELL = isDev
+// --shell-dist : le shell compilé même hors app empaquetée (mesures de perf).
+const URL_SHELL = isDev && !process.argv.includes('--shell-dist')
   ? DEV_SERVER
   : pathToFileURL(path.join(__dirname, '../renderer/dist/index.html')).href;
 
@@ -103,12 +106,37 @@ app.on('second-instance', () => {
 });
 
 app.whenReady().then(() => {
+  const tPret = performance.now();
   app.configureHostResolver({ secureDnsMode: 'automatic' });
   etat.init(dossierDonnees());
+  // Thème et langue suivent les réglages ; le menu natif se reconstruit dans la
+  // nouvelle langue.
+  nativeTheme.themeSource = etat.reglages().theme;
+  i18n.setLanguage(etat.reglages().langue);
+  etat.ecouter((d) => {
+    if (d.type !== 'settings:changed') return;
+    if ('theme' in d.patch) nativeTheme.themeSource = d.patch.theme;
+    if ('langue' in d.patch) {
+      i18n.setLanguage(d.patch.langue);
+      reconstruireMenu();
+    }
+  });
+  // Une première installation n'a pas de « Nouveautés » à montrer.
+  if (!etat.reglages().derniereVersionVue) etat.regler({ derniereVersionVue: app.getVersion() });
   extensions.brancherShell(session.defaultSession);
   ipc.handle('etat:initial', { type: 'objet', champs: {} }, () => etat.lire());
   for (const [nom, { schema, fn }] of Object.entries(ACTIONS)) ipc.action(nom, schema, (p) => fn(contexte, p));
   menusContextuels.declarer({ action: ipc.action, agir, ui, etat, fenetre: () => win });
+  ipc.action('app.infos', { type: 'objet', champs: {} }, () => ({ version: app.getVersion() }));
+  ipc.action('maj.notes', { type: 'objet', champs: {} }, () =>
+    updates.notesFor(app.getVersion(), i18n.getLanguage())
+  );
+  ipc.action('maj.ouvrir', { type: 'objet', champs: { url: { type: 'string', max: 2048 } } }, ({ url }) => {
+    // Seulement une page de GitHub : jamais une adresse arbitraire venue du shell.
+    if (/^https:\/\/github\.com\/Luth-infinity\/escale\//.test(url)) shell.openExternal(url);
+  });
+  const verifierAuRetour = updates.watch((maj) => ipc.emettre({ type: 'update:available', ...maj }));
+  app.on('browser-window-focus', verifierAuRetour);
   ipc.action('commande.suggestions', { type: 'objet', champs: { texte: { type: 'string', max: 500 } } }, ({ texte }) =>
     etat.reglages().suggestions ? suggestions.distantes(texte) : []
   );
@@ -134,6 +162,9 @@ app.whenReady().then(() => {
   }
   if (!app.isPackaged && process.argv.includes('--perf-liste')) {
     win.webContents.once('did-finish-load', () => require(path.join(__dirname, '../../scripts/perf-liste.js'))({ fenetre: win, etat }));
+  }
+  if (!app.isPackaged && process.argv.includes('--mesures')) {
+    require(path.join(__dirname, '../../scripts/mesures-autotest.js'))({ fenetre: win, onglets, etat, ipc, debut: tPret });
   }
   // Banc de sécurité (scripts/test-securite.js) : jamais dans l'app empaquetée.
   if (!app.isPackaged && process.argv.includes('--test-securite')) {

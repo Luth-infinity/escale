@@ -22,7 +22,24 @@ function construire({ agir, ui, onglets, etat }) {
   };
 
   const modele = [
-    ...(mac ? [{ role: 'appMenu' }] : []),
+    ...(mac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about', label: t('À propos d’Escale') },
+              { type: 'separator' },
+              { label: t('Réglages…'), accelerator: 'Cmd+,', click: () => ui('reglages') },
+              { type: 'separator' },
+              { role: 'hide', label: t('Masquer Escale') },
+              { role: 'hideOthers', label: t('Masquer les autres') },
+              { role: 'unhide', label: t('Tout afficher') },
+              { type: 'separator' },
+              { role: 'quit', label: t('Quitter Escale') }
+            ]
+          }
+        ]
+      : []),
     {
       label: t('Fichier'),
       submenu: [
@@ -31,7 +48,7 @@ function construire({ agir, ui, onglets, etat }) {
         { label: t('Fermer l’onglet'), accelerator: 'CmdOrCtrl+W', click: fermerCourant },
         { type: 'separator' },
         { label: t('Ouvrir une adresse'), accelerator: 'CmdOrCtrl+L', click: () => ui('adresse') },
-        ...(mac ? [] : [{ type: 'separator' }, { role: 'quit', label: t('Quitter') }])
+        ...(mac ? [] : [{ type: 'separator' }, { label: t('Réglages…'), accelerator: 'Ctrl+,', click: () => ui('reglages') }, { role: 'quit', label: t('Quitter') }])
       ]
     },
     { role: 'editMenu', label: t('Édition') },

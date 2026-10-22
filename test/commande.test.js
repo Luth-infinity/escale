@@ -50,7 +50,8 @@ test('les épinglés sont proposés, avec leur type ; les autres espaces aussi, 
 
 test('raccourcis de recherche : yt, gh, w, g', () => {
   assert.deepStrictEqual(resoudre('yt chat qui saute', etat, historique)[0], {
-    type: 'recherche', titre: 'Rechercher « chat qui saute » sur YouTube', url: 'https://www.youtube.com/results?search_query=chat%20qui%20saute'
+    type: 'recherche', titre: 'Rechercher « chat qui saute » sur YouTube', url: 'https://www.youtube.com/results?search_query=chat%20qui%20saute',
+    requete: 'chat qui saute', site: 'YouTube'
   });
   assert.strictEqual(resoudre('gh escale', etat, historique)[0].url, 'https://github.com/search?q=escale');
   assert.strictEqual(resoudre('w Escale', etat, historique)[0].url, 'https://fr.wikipedia.org/w/index.php?search=Escale');
