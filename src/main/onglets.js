@@ -4,6 +4,7 @@ const ipc = require('./ipc');
 const extensions = require('./extensions');
 const adblock = require('./adblock');
 const importFirefox = require('./import-firefox');
+const ua = require('./ua');
 const favicon = require('./favicon');
 const menucontextuel = require('./menucontextuel');
 const securite = require('./securite-pages');
@@ -156,6 +157,7 @@ function cabler(vue, id) {
   const wc = vue.webContents;
   securite.brancherPage(wc, { fenetre: () => fenetre, exceptionsHttp });
   importFirefox.surveillerRefusGoogle(wc);
+  ua.suivre(wc);
 
   wc.on('page-title-updated', (_e, titre) => meta(id, { titre }));
   wc.on('page-favicon-updated', async (_e, icones) => {
@@ -237,6 +239,9 @@ function cabler(vue, id) {
     }
     return { action: 'deny' };
   });
+  // La popup « Se connecter avec Google » passe par accounts.google.com : même
+  // règle d'UA que les onglets.
+  wc.on('did-create-window', (fenetrePopup) => ua.suivre(fenetrePopup.webContents));
 }
 
 function emettreNav(id) {

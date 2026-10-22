@@ -23,6 +23,9 @@ Commits signés `Luth <57181738+Luth-infinity@users.noreply.github.com>`, **aucu
 - **Popups** : ne jamais passer `session` ni `partition` dans `overrideBrowserWindowOptions`.
 - **Bancs de test** : lancer Electron avec `--disable-backgrounding-occluded-windows --disable-renderer-backgrounding`, sinon macOS juge la fenêtre masquée et Chromium gèle les animations. `pkill -9 -f "escale/node_modules/electron"` avant chaque lancement (verrou d'instance unique).
 - Ne jamais lancer `vite build` pendant `npm run dev`.
+- **Connexion Google : l'UA réel, jamais l'UA « Chrome ».** Sur `accounts.google.com`, un UA qui se dit Chrome sans l'empreinte de Chrome mène à « Ce navigateur ou cette application ne sont peut-être pas sécurisés » ; l'UA réel d'Electron (`Escale/x Electron/y`) passe (`ua.js`, `uaPour`). Vérifié avec une adresse factice : « Impossible de trouver ce compte » = le contrôle du navigateur est franchi.
+- **Cadres d'extension** (menu d'un gestionnaire de mots de passe posé dans la page) : `nodeIntegrationInSubFrames` sur les vues, sinon le preload d'electron-chrome-extensions n'y tourne pas et la moitié de `chrome.*` manque.
+- **Popups d'extension sous Windows mis à l'échelle** : `ajusterPopup` (extensions.js) reprend taille et placement ; le reverrouillage « non redimensionnable » et `updatePosition` de la lib rognent la fenêtre.
 
 ## Outils de dev (hors app empaquetée)
 
