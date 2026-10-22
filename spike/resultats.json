@@ -1,0 +1,106 @@
+{
+  "electron": "41.10.6",
+  "chrome": "146.0.7680.216",
+  "extensions": {
+    "ublock": {
+      "id": "ddkjiahejlhfcafbddmgiahcphecmpfh",
+      "installee": true,
+      "version": "2026.1021.1354",
+      "mv": 3,
+      "permissions": [
+        "activeTab",
+        "alarms",
+        "declarativeNetRequest",
+        "offscreen",
+        "scripting",
+        "storage",
+        "unlimitedStorage",
+        "userScripts"
+      ],
+      "popup": "popup.html",
+      "requeteRegieBloquee": false,
+      "popupTexte": "example.com\nfiltering mode\noptimal\nOn this website\nRemove an element\nCreate a custom filter\nReport an issue",
+      "popupErreursConsole": []
+    },
+    "bitwarden": {
+      "id": "nngceckbapebfimnlniiiahkandclblb",
+      "installee": true,
+      "version": "2026.10.0",
+      "mv": 3,
+      "permissions": [
+        "activeTab",
+        "alarms",
+        "clipboardRead",
+        "clipboardWrite",
+        "contextMenus",
+        "idle",
+        "offscreen",
+        "scripting",
+        "sidePanel",
+        "storage",
+        "tabs",
+        "unlimitedStorage",
+        "webNavigation",
+        "webRequest",
+        "webRequestAuthProvider",
+        "notifications"
+      ],
+      "popup": "popup/index.html",
+      "popupTexte": "Security, prioritized\n\nSave logins, cards, and identities to your secure vault. Bitwarden uses zero-knowledge, end-to-en",
+      "popupErreursConsole": []
+    },
+    "darkreader": {
+      "id": "eimadpbcbfnmbkopoojfekhnkhdbieeh",
+      "installee": true,
+      "version": "4.9.133",
+      "mv": 3,
+      "permissions": [
+        "alarms",
+        "fontSettings",
+        "scripting",
+        "storage"
+      ],
+      "popup": "ui/popup/index.html",
+      "fond": "rgb(24, 26, 27) | true",
+      "popupTexte": "Loading, please wait\nDark Reader\n example.com\nConfigure website toggling\nOn\nOff\nConfigure automation\nFilter\nSite list\nMo",
+      "popupErreursConsole": [
+        "Unrecognized Content-Security-Policy directive 'navigate-to'."
+      ]
+    }
+  },
+  "erreursSW": [
+    "Unrecognized Content-Security-Policy directive 'navigate-to'.",
+    "Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist."
+  ],
+  "declarativeNetRequest": true,
+  "apiDansUnePageExtension": {
+    "tabs": true,
+    "windows": true,
+    "contextMenus": true,
+    "cookies": true,
+    "notifications": true,
+    "downloads": true,
+    "permissions": true,
+    "identity": false,
+    "offscreen": true,
+    "declarativeNetRequest": false,
+    "storage": true,
+    "alarms": true,
+    "scripting": true,
+    "webNavigation": true,
+    "action": true,
+    "runtime": true
+  },
+  "capture": {
+    "mediane": 6.8,
+    "p95": 8.4,
+    "max": 191.2,
+    "unite": "ms (capture + JPEG)"
+  },
+  "setBounds": {
+    "framesShell": 137,
+    "recusPrincipal": 137,
+    "coutMedianMs": 0.1
+  },
+  "setBorderRadius": "appel OK (rendu à contrôler visuellement)"
+}
