@@ -1,5 +1,5 @@
 // Miroir des types de src/main/model/arbre.js.
-export type Espace = { id: string; nom: string; icone: string | null; teinte: string | null; partition: string };
+export type Espace = { id: string; nom: string; icone: string | null; teinte: string | null; partition: string; prive?: boolean };
 export type Dossier = {
   id: string; espaceId: string; parentId: string | null; nom: string; teinte: string | null; replie: boolean; ordre: string;
 };

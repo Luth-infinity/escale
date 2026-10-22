@@ -1,5 +1,6 @@
 const { shell } = require('electron');
 const dialogue = require('./dialogue');
+const telechargements = require('./telechargements');
 const { execFile } = require('node:child_process');
 const fs = require('node:fs');
 const { t } = require('./i18n');
@@ -74,6 +75,8 @@ function brancherSession(ses, { fenetre }) {
   }
 
   ses.on('will-download', (_e, item) => {
+    // Rangé d'office et suivi en bas de la barre (telechargements.js).
+    telechargements.suivre(item);
     const nom = item.getFilename();
     if (DANGEREUX.test(nom)) {
       item.pause();

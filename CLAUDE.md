@@ -25,6 +25,11 @@ Commits signés `Luth <57181738+Luth-infinity@users.noreply.github.com>`, **aucu
 - Ne jamais lancer `vite build` pendant `npm run dev`.
 - **Connexion Google : l'UA réel, jamais l'UA « Chrome ».** Sur `accounts.google.com`, un UA qui se dit Chrome sans l'empreinte de Chrome mène à « Ce navigateur ou cette application ne sont peut-être pas sécurisés » ; l'UA réel d'Electron (`Escale/x Electron/y`) passe (`ua.js`, `uaPour`). Vérifié avec une adresse factice : « Impossible de trouver ce compte » = le contrôle du navigateur est franchi.
 - **Cadres d'extension** (menu d'un gestionnaire de mots de passe posé dans la page) : `nodeIntegrationInSubFrames` sur les vues, sinon le preload d'electron-chrome-extensions n'y tourne pas et la moitié de `chrome.*` manque.
+- **YouTube** (`ambiance.js`) : ambiance, bulle et sponsors posés dans un monde isolé (1201), construits sans innerHTML (Trusted Types de YouTube). La bulle range ses demandes, le principal les relève toutes les 300 ms. « Ignorer » une pub : vrai clic (`sendInputEvent`), YouTube refuse les clics de script.
+- **yt-dlp** (`videos.js`) : moteur JavaScript = Deno téléchargé au premier usage, **jamais** Electron : le fusible RunAsNode reste fermé (spec §9.3).
+- **Navigation privée** : espace `prive: true`, partition sans `persist:`, purgé au démarrage (`etat.init`), rien dans l'historique, pas d'extensions.
+- **Plein écran vidéo** : `boite()` mesure l'écran, pas la fenêtre ; `zone()` ne repose pas la vue tant qu'elle est en plein écran.
+- **Barre masquée** : la bande de 8 px du bord gauche la réveille ; le principal suit le pointeur (`barre.survol`), le shell ne le voit pas partir sur la page.
 - **Popups d'extension sous Windows mis à l'échelle** : `ajusterPopup` (extensions.js) reprend taille et placement ; le reverrouillage « non redimensionnable » et `updatePosition` de la lib rognent la fenêtre.
 
 ## Outils de dev (hors app empaquetée)

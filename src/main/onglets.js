@@ -100,7 +100,7 @@ function assurerSession(espace) {
   adblock.applyTo(ses, () => etat.reglages().bloqueur);
   ua.brancherSession(ses);
   ses.setSpellCheckerLanguages(['fr', 'en-US']);
-  p = extensions.brancherSession(ses).then(() => ses);
+  p = extensions.brancherSession(ses, { prive: Boolean(espace.prive) }).then(() => ses);
   sessionsEspace.set(espace.id, p);
   return p;
 }
@@ -134,7 +134,8 @@ async function assurerVue(id) {
   // d'un gestionnaire de mots de passe) n'a que les API natives d'Electron :
   // chrome.tabs.getCurrent, permissions, windows… y manquent.
   const vue = new WebContentsView({
-    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true }
+    // plugins : la visionneuse PDF de Chromium ; sans elle, un PDF se télécharge au lieu de s'afficher.
+    webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true, plugins: true }
   });
   vue.setBorderRadius(RAYON);
   // Le fond par défaut d'un navigateur : sans lui, une page qui ne peint pas
@@ -229,7 +230,9 @@ function cabler(vue, id) {
     clearTimeout(minuteurHistorique);
     minuteurHistorique = setTimeout(() => {
       const url = wc.isDestroyed() ? '' : wc.getURL();
-      if (/^https?:/.test(url)) historique.noterVisite(url, wc.getTitle());
+      // Rien n'est noté pour un onglet de navigation privée.
+      const espace = etat.lire().espaces.find((e) => e.id === etat.lire().onglets.find((o) => o.id === id)?.espaceId);
+      if (/^https?:/.test(url) && !espace?.prive) historique.noterVisite(url, wc.getTitle());
     }, CALME_HISTORIQUE_MS);
   };
 

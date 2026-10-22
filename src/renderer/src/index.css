@@ -146,6 +146,7 @@ html {
   --color-ring: var(--ring);
   --color-shell: var(--shell);
   --color-shell-raised: var(--shell-raised);
+  --color-shell-base: var(--shell-base);
   --color-shell-border: var(--shell-border);
   --color-shell-foreground: var(--shell-foreground);
   --color-shell-muted: var(--shell-muted);

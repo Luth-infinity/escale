@@ -199,3 +199,13 @@ test('un onglet ouvert en arrière-plan après coup ne devient pas l’onglet de
   e = A.activerEspace(e, espaceId).etat;
   assert.strictEqual(e.ongletActif, a.id);
 });
+
+test('espace privé : session en mémoire, marqué prive', () => {
+  const r = A.ajouterEspace(A.creerEtat(), { nom: 'Privé', prive: true });
+  const e = r.deltas[0].espace;
+  assert.strictEqual(e.prive, true);
+  assert.ok(!e.partition.startsWith('persist:'));
+  const normal = A.ajouterEspace(A.creerEtat(), { nom: 'Boulot' }).deltas[0].espace;
+  assert.ok(normal.partition.startsWith('persist:'));
+  assert.strictEqual(normal.prive, undefined);
+});

@@ -31,6 +31,11 @@ function init(dir) {
   dossier = dir;
   const lu = store.charger(dir);
   etat = { ...lu, reglages: { ...REGLAGES, ...(lu.reglages || {}) } };
+  // La navigation privée ne survit pas à la fermeture : ses espaces partent,
+  // avec leurs onglets et leurs dossiers.
+  for (const e of etat.espaces.filter((x) => x.prive)) {
+    if (etat.espaces.length > 1) etat = A.supprimerEspace(etat, e.id).etat;
+  }
   return etat;
 }
 

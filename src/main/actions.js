@@ -125,6 +125,15 @@ const ACTIONS = {
       ctx.etat.appliquer('modifierEspace', id, patch);
     }
   },
+  // Navigation privée : un espace à part, en mémoire seulement (arbre.js).
+  'espace.prive': {
+    schema: objet({ nom: NOM }),
+    fn: (ctx, { nom }) => {
+      const id = ctx.etat.appliquer('ajouterEspace', { nom, prive: true, icone: '🕶️', teinte: '#5b6472' }).deltas[0].espace.id;
+      ctx.etat.appliquer('activerEspace', id);
+      return id;
+    }
+  },
   'espace.supprimer': { schema: objet({ id: ID }), fn: (ctx, { id }) => ctx.etat.appliquer('supprimerEspace', id) },
 
   'nav.precedent': { schema: RIEN, fn: (ctx) => wcCourant(ctx)?.navigationHistory.goBack() },

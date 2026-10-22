@@ -15,9 +15,12 @@ const { entre, repartir } = require('./ordre');
 
 const CLE_MAX = 24;
 
-function creerEspace({ nom, teinte = null, icone = null }) {
+// Un espace privé a une session en mémoire seulement (pas de « persist: ») :
+// ni cookies ni cache ne survivent, et il disparaît au redémarrage (etat.js).
+function creerEspace({ nom, teinte = null, icone = null, prive = false }) {
   const id = randomUUID();
-  return { id, nom, icone, teinte, partition: `persist:space-${id}` };
+  const base = { id, nom, icone, teinte, partition: prive ? `prive-${id}` : `persist:space-${id}` };
+  return prive ? { ...base, prive: true } : base;
 }
 
 function creerEtat() {

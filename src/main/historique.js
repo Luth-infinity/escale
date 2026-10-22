@@ -57,7 +57,23 @@ function ouvrir(chemin) {
     `);
   }
 
-  return { noterVisite, chercher, effacer, fermer: () => db.close() };
+  const qRecents = db.prepare(`SELECT v.url, v.quand, p.titre FROM visites v JOIN pages p ON p.url = v.url
+    WHERE v.quand < ? ORDER BY v.quand DESC LIMIT ?`);
+
+  /** Les visites les plus récentes avant `avant` (page suivante : la dernière `quand`). */
+  function recents(limite = 100, avant = Number.MAX_SAFE_INTEGER) {
+    return qRecents.all(avant, limite).map((r) => ({ ...r }));
+  }
+
+  /** Une page et toutes ses visites, retirées de l'historique et de la recherche. */
+  function oublier(url) {
+    const page = db.prepare('SELECT id FROM pages WHERE url = ?').get(url);
+    db.prepare('DELETE FROM visites WHERE url = ?').run(url);
+    db.prepare('DELETE FROM pages WHERE url = ?').run(url);
+    if (page) q.oublier.run(page.id);
+  }
+
+  return { noterVisite, chercher, effacer, recents, oublier, fermer: () => db.close() };
 }
 
 module.exports = { ouvrir };

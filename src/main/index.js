@@ -18,6 +18,8 @@ const i18n = require('./i18n');
 const dialogue = require('./dialogue');
 const importFirefox = require('./import-firefox');
 const videos = require('./videos');
+const telechargements = require('./telechargements');
+const defaut = require('./defaut');
 
 // Le mode dev se déduit de l'empaquetage seul, jamais d'un argument.
 const isDev = !app.isPackaged;
@@ -40,7 +42,7 @@ let win = null;
 const contexte = { etat, onglets, fermes: [], historique: null };
 const agir = (nom, payload) => ACTIONS[nom].fn(contexte, payload);
 const ui = (nom, id) => ipc.emettre({ type: 'ui:commande', nom, t: Date.now(), ...(id ? { id } : {}) });
-const reconstruireMenu = () => menu.construire({ agir, ui, onglets, etat });
+const reconstruireMenu = () => menu.construire({ agir, ui, onglets, etat, fenetre: () => win });
 const dossierDonnees = () => app.getPath('userData');
 
 // Hors macOS, la barre de titre masquée emporte les boutons de la fenêtre : on
@@ -148,10 +150,24 @@ app.on('certificate-error', (e, _wc, _url, _err, _cert, rappel) => {
   rappel(false);
 });
 
-app.on('second-instance', () => {
+// Un lien ouvert ailleurs (Escale navigateur par défaut) : un onglet de
+// l'espace actif. Avant que tout soit prêt, il attend.
+const liensEnAttente = [];
+let pret = false;
+function ouvrirLiens(urls) {
+  if (!pret) return liensEnAttente.push(...urls);
+  for (const url of urls) onglets.ouvrir(etat.lire().espaceActif, url, { actif: true });
+}
+
+app.on('second-instance', (_e, argv) => {
   if (!win) return;
   if (win.isMinimized()) win.restore();
   win.focus();
+  ouvrirLiens(defaut.liensDe(argv));
+});
+app.on('open-url', (e, url) => {
+  e.preventDefault();
+  ouvrirLiens([url]);
 });
 
 app.whenReady().then(() => {
@@ -177,10 +193,15 @@ app.whenReady().then(() => {
   for (const [nom, { schema, fn }] of Object.entries(ACTIONS)) ipc.action(nom, schema, (p) => fn(contexte, p));
   menusContextuels.declarer({ action: ipc.action, agir, ui, etat, fenetre: () => win });
   ipc.action('app.infos', { type: 'objet', champs: {} }, () => ({ version: app.getVersion() }));
-  // Vidéos YouTube (videos.js) : le menu des formats s'ouvre depuis la bulle de
-  // la page (ambiance.js) ; la progression arrive au shell en deltas `video:etat`.
-  ipc.action('video.annuler', { type: 'objet', champs: { id: { type: 'string', max: 20 } } }, ({ id }) => videos.annuler(id));
-  ipc.action('video.montrer', { type: 'objet', champs: { id: { type: 'string', max: 20 } } }, ({ id }) => {
+  // Téléchargements : vidéos YouTube (videos.js, lancées depuis la bulle) et
+  // fichiers ordinaires (telechargements.js) partagent la même ligne en bas de
+  // la barre, en deltas `video:etat` ; l'identifiant dit qui le porte.
+  const ID_TELECHARGEMENT = { type: 'objet', champs: { id: { type: 'string', max: 32 } } };
+  ipc.action('video.annuler', ID_TELECHARGEMENT, ({ id }) =>
+    telechargements.estLeMien(id) ? telechargements.annuler(id) : videos.annuler(id)
+  );
+  ipc.action('video.montrer', ID_TELECHARGEMENT, ({ id }) => {
+    if (telechargements.estLeMien(id)) return telechargements.montrer(id);
     const chemin = videos.cheminFini(id);
     if (chemin) shell.showItemInFolder(chemin);
     else shell.openPath(app.getPath('downloads'));
@@ -217,6 +238,40 @@ app.whenReady().then(() => {
   fermerInactifs();
   setInterval(fermerInactifs, 10 * 60e3).unref();
   creerFenetre();
+  pret = true;
+  ouvrirLiens([...liensEnAttente.splice(0), ...defaut.liensDe(process.argv.slice(1))]);
+  ipc.action('defaut.etat', { type: 'objet', champs: {} }, async () => ({ defaut: await defaut.estParDefaut(), dev: !app.isPackaged }));
+  // Historique (page Ctrl+H) et effacement des données de navigation.
+  const TEXTE = { type: 'string', max: 500 };
+  ipc.action('historique.recents', { type: 'objet', champs: { avant: { type: 'number', optionnel: true } } }, ({ avant }) =>
+    contexte.historique.recents(100, avant)
+  );
+  ipc.action('historique.chercher', { type: 'objet', champs: { texte: TEXTE } }, ({ texte }) => contexte.historique.chercher(texte, 60));
+  ipc.action('historique.oublier', { type: 'objet', champs: { url: { type: 'string', max: 8192 } } }, ({ url }) => contexte.historique.oublier(url));
+  const DEPUIS = { heure: 3600e3, jour: 86400e3, semaine: 7 * 86400e3, tout: Infinity };
+  ipc.action(
+    'donnees.effacer',
+    {
+      type: 'objet',
+      champs: {
+        periode: { type: 'enum', valeurs: Object.keys(DEPUIS) },
+        historique: { type: 'boolean' },
+        cookies: { type: 'boolean' },
+        cache: { type: 'boolean' }
+      }
+    },
+    async ({ periode, historique: hist, cookies, cache }) => {
+      if (hist) contexte.historique.effacer(periode === 'tout' ? 0 : Date.now() - DEPUIS[periode]);
+      // Cookies, stockage et cache ne se datent pas : ils partent en entier, dans tous les espaces.
+      for (const e of etat.lire().espaces) {
+        const ses = session.fromPartition(e.partition);
+        if (cookies) await ses.clearStorageData({ storages: ['cookies', 'localstorage', 'indexdb', 'websql', 'serviceworkers', 'cachestorage', 'filesystem', 'shadercache'] });
+        if (cache) await ses.clearCache();
+      }
+      return true;
+    }
+  );
+  ipc.action('defaut.definir', { type: 'objet', champs: {} }, () => defaut.definir().catch((e) => ({ ok: false, raison: e.message })));
   // Outils de dev : jamais dans l'app empaquetée.
   const apercu = process.argv.find((a) => a.startsWith('--apercu='));
   if (!app.isPackaged && apercu) {

@@ -9,6 +9,7 @@ import { BarreRecherche } from './components/BarreRecherche';
 import { Reglages } from './components/Reglages';
 import { Nouveautes } from './components/Nouveautes';
 import { Dialogue } from './components/Dialogue';
+import { Historique } from './components/Historique';
 import { setLanguage } from './lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +20,7 @@ import { cn } from '@/lib/utils';
  */
 type Commande = { nouvelOnglet: boolean; depuis?: number } | null;
 
-type Modale = { type: 'reglages' } | { type: 'nouveautes'; version: string; points: string[] } | null;
+type Modale = { type: 'reglages' } | { type: 'historique' } | { type: 'nouveautes'; version: string; points: string[] } | null;
 
 function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale, fermerModale }: {
   commande: Commande; fermerCommande: () => void; recherche: boolean; fermerRecherche: () => void; modale: Modale; fermerModale: () => void;
@@ -63,6 +64,7 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale
           {!question && commande && <BarreCommande nouvelOnglet={commande.nouvelOnglet} depuis={commande.depuis} fermer={fermerCommande} />}
           {!question && !commande && modale?.type === 'reglages' && <Reglages fermer={fermerModale} />}
           {!question && !commande && modale?.type === 'nouveautes' && <Nouveautes version={modale.version} points={modale.points} fermer={fermerModale} />}
+          {!question && !commande && modale?.type === 'historique' && <Historique fermer={fermerModale} />}
         </div>
       </div>
     </main>
@@ -100,6 +102,7 @@ function Shell() {
   }, []);
   useCommande((nom, _id, t) => {
     if (nom === 'reglages') setModale({ type: 'reglages' });
+    if (nom === 'historique') setModale({ type: 'historique' });
     if (nom === 'nouvel-onglet') setCommande({ nouvelOnglet: true, depuis: t });
     if (nom === 'adresse') setCommande({ nouvelOnglet: false, depuis: t });
     if (nom === 'chercher') setRecherche(true);

@@ -57,3 +57,23 @@ test('effacer(depuis) supprime les visites récentes seulement ; effacer() vide 
   assert.deepStrictEqual(h.chercher('vieux'), []);
   h.fermer();
 });
+
+test('recents : les visites de la plus récente à la plus ancienne, par pages', () => {
+  const { h } = ouvrir();
+  h.noterVisite('https://a.fr/', 'A', 1000);
+  h.noterVisite('https://b.fr/', 'B', 2000);
+  h.noterVisite('https://a.fr/', 'A', 3000);
+  assert.deepStrictEqual(h.recents(2).map((r) => [r.url, r.quand]), [['https://a.fr/', 3000], ['https://b.fr/', 2000]]);
+  assert.deepStrictEqual(h.recents(10, 2000).map((r) => r.quand), [1000]);
+  h.fermer();
+});
+
+test('oublier : la page disparaît des visites et de la recherche', () => {
+  const { h } = ouvrir();
+  h.noterVisite('https://secret.fr/', 'Secret', 1000);
+  h.noterVisite('https://autre.fr/', 'Autre', 2000);
+  h.oublier('https://secret.fr/');
+  assert.deepStrictEqual(h.recents().map((r) => r.url), ['https://autre.fr/']);
+  assert.deepStrictEqual(h.chercher('secret'), []);
+  h.fermer();
+});
