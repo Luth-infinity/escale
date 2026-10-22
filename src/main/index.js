@@ -1,10 +1,13 @@
-const { app, BrowserWindow, nativeTheme, session } = require('electron');
+const { app, BrowserWindow, nativeTheme, session, protocol } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { CHROME_UA } = require('./ua');
 const ipc = require('./ipc');
 const store = require('./store');
+const etat = require('./etat');
+const historique = require('./historique');
 const extensions = require('./extensions');
+const onglets = require('./onglets');
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
 const DEV_SERVER = 'http://localhost:5373/';
@@ -14,10 +17,12 @@ const URL_SHELL = isDev
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
+// Les pages internes (avertissement HTTP) sont servies en escale://.
+protocol.registerSchemesAsPrivileged([{ scheme: 'escale', privileges: { standard: true, secure: true } }]);
+
 app.userAgentFallback = CHROME_UA;
 
 let win = null;
-let etat = null;
 const dossierDonnees = () => app.getPath('userData');
 
 function creerFenetre() {
@@ -44,8 +49,11 @@ function creerFenetre() {
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
+  onglets.init({ fenetre: win, historique: historique.ouvrir(path.join(dossierDonnees(), 'history.sqlite')), dev: isDev });
   win.once('ready-to-show', () => win.show());
   win.loadURL(URL_SHELL);
+  const actif = etat.lire().ongletActif;
+  if (actif) onglets.afficher(actif);
 }
 
 // Aucune page ne doit pouvoir embarquer un <webview>.
@@ -68,10 +76,14 @@ app.on('second-instance', () => {
 
 app.whenReady().then(() => {
   app.configureHostResolver({ secureDnsMode: 'automatic' });
-  etat = store.charger(dossierDonnees());
+  etat.init(dossierDonnees());
   extensions.brancherShell(session.defaultSession);
-  ipc.handle('etat:initial', { type: 'objet', champs: {} }, () => etat);
+  ipc.handle('etat:initial', { type: 'objet', champs: {} }, () => etat.lire());
   creerFenetre();
+  // Banc de sécurité (scripts/test-securite.js) : jamais dans l'app empaquetée.
+  if (!app.isPackaged && process.argv.includes('--test-securite')) {
+    require(path.join(__dirname, '../../scripts/securite-autotest.js'))({ fenetre: win, onglets, etat, ipc });
+  }
 });
 
 app.on('before-quit', () => store.vider());
