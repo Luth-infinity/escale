@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
-import { Plus, Settings } from 'lucide-react';
+import { Plus, Puzzle, Settings } from 'lucide-react';
 import { agir, commandeLocale, useCommande, useEtat } from '@/etat';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
@@ -56,12 +56,66 @@ export function EnTeteEspace() {
   );
 }
 
+/**
+ * Les extensions de l'espace actif, derrière un bouton du pied de barre : leurs
+ * icônes s'ouvrent au-dessus, et leurs popups au-dessus d'elles.
+ */
+function BoutonExtensions() {
+  const partition = useEtat((e) => e.espaces.find((x) => x.id === e.espaceActif)?.partition);
+  const [ouvert, setOuvert] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!ouvert) return;
+    const dehors = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOuvert(false);
+    const echap = (e: KeyboardEvent) => e.key === 'Escape' && setOuvert(false);
+    window.addEventListener('mousedown', dehors);
+    window.addEventListener('keydown', echap);
+    return () => {
+      window.removeEventListener('mousedown', dehors);
+      window.removeEventListener('keydown', echap);
+    };
+  }, [ouvert]);
+  if (!partition) return null;
+  return (
+    // Le panneau se cale sur toute la largeur du pied de barre (son parent
+    // positionné), pas sur le bouton : la barre ne fait que 240 px.
+    <div ref={ref}>
+      {ouvert && (
+        <div className="absolute inset-x-2 bottom-full mb-2 rounded-xl border border-shell-border bg-shell-raised p-2 shadow-[0_16px_40px_-16px_rgb(0_0_0/0.45)]">
+          <div className="px-1 pb-1.5 text-[11.5px] font-medium text-shell-muted">{t('Extensions')}</div>
+          <browser-action-list partition={partition} alignment="top right" />
+          <button
+            onClick={() => {
+              agir('onglet.ouvrir', { url: 'https://chromewebstore.google.com/category/extensions' });
+              setOuvert(false);
+            }}
+            className="mt-1.5 flex h-7 w-full items-center gap-1.5 rounded-md px-1.5 text-left text-[12.5px] text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"
+          >
+            <Plus className="size-3.5" />
+            {t('Ajouter des extensions')}
+          </button>
+        </div>
+      )}
+      <button
+        title={t('Extensions')}
+        onClick={() => setOuvert((o) => !o)}
+        className={cn(
+          'grid size-7 place-items-center rounded-md text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground',
+          ouvert && 'bg-shell-hover text-shell-foreground'
+        )}
+      >
+        <Puzzle className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 /** Les espaces, en bas de la barre : un clic bascule, le « + » en crée un. */
 export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
   const espaces = useEtat((e) => e.espaces);
   const actif = useEtat((e) => e.espaceActif);
   return (
-    <div className={cn('flex shrink-0 items-center gap-1 border-t border-shell-border px-2', rail ? 'flex-col py-2' : 'h-11')}>
+    <div className={cn('relative flex shrink-0 items-center gap-1 border-t border-shell-border px-2', rail ? 'flex-col py-2' : 'h-11')}>
       {espaces.map((e, i) => (
         <button
           key={e.id}
@@ -87,6 +141,9 @@ export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
       >
         <Plus className="size-4" />
       </button>
+      {/* Replié en rail, la barre est trop étroite pour le panneau : la page
+          (vue native) le recouvrirait. */}
+      {!rail && <BoutonExtensions />}
       {/* Hors macOS, la barre de menus est masquée : sans ce bouton, les
           réglages n'étaient joignables que par Ctrl+, qu'on ne devine pas. */}
       <button

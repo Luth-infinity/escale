@@ -10,6 +10,7 @@ import { t } from '@/lib/i18n';
 import { Liste } from './Liste';
 import { SelecteurEspaces, EnTeteEspace } from './SelecteurEspaces';
 import { BandeauMaj } from './BandeauMaj';
+import { Logo } from './Logo';
 
 export const LARGEUR = 240;
 export const LARGEUR_RAIL = 56;
@@ -63,7 +64,6 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
   const rail = useEtat((e) => e.reglages.barreRepliee);
   const espaces = useEtat((e) => e.espaces);
   const espaceActif = useEtat((e) => e.espaceActif);
-  const partition = useEtat((e) => e.espaces.find((x) => x.id === e.espaceActif)?.partition);
   const onglets = useEtat((e) => e.onglets);
   const dossiers = useEtat((e) => e.dossiers);
   const lignes = React.useMemo(
@@ -110,7 +110,15 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
       onWheel={surMolette}
       className="flex h-full shrink-0 flex-col overflow-hidden"
     >
-      <div className={cn('drag flex h-[52px] shrink-0 items-center justify-end gap-0.5 pr-2', mac && !rail && 'pl-[86px]')}>
+      <div className={cn('drag flex h-[52px] shrink-0 items-center gap-0.5 pr-2', mac && !rail && 'pl-[86px]', rail && 'justify-center pr-0')}>
+        {/* Hors macOS, pas de feux à gauche : la place revient au logo. */}
+        {!mac && (
+          <div className={cn('flex min-w-0 items-center gap-2', !rail && 'mr-auto pl-3')}>
+            <Logo className="size-5 shrink-0" />
+            {!rail && <span className="truncate text-[13px] font-semibold tracking-tight">Escale</span>}
+          </div>
+        )}
+        {mac && !rail && <span className="mr-auto" />}
         {!rail && (
           <>
             <BoutonNav titre={t('Précédent')} desactive={!nav?.peutReculer} onClick={() => agir('nav.precedent')}>
@@ -126,11 +134,6 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
         )}
       </div>
       {!rail && <Adresse ouvrir={() => ouvrirCommande(false)} />}
-      {partition && !rail && (
-        <div className="no-drag mx-2 mt-1.5 flex min-h-0 shrink-0 items-center">
-          <browser-action-list partition={partition} alignment="bottom right" />
-        </div>
-      )}
       <div className="relative min-h-0 flex-1">
         <AnimatePresence initial={false} custom={sens} mode="popLayout">
           <motion.div
