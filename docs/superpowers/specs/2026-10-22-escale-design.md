@@ -9,7 +9,8 @@ Un navigateur de bureau façon Arc, dans la famille visuelle de Hublink, signé 
 Ce qu'a demandé l'utilisateur :
 - **Onglets verticaux, dossiers, extensions Chrome** : les trois priorités.
 - Le **maximum d'extensions** compatibles.
-- **Fluide, sans lag**.
+- **Fluide, sans lag**, avec des animations ultra fluides partout.
+- **La sécurité comme priorité absolue** (§9).
 - La DA de Hublink **plus un détail qui les différencie**. Les trois pistes sont retenues : page encadrée, accent propre, teinte par dossier.
 - **Tout ce qu'on attend d'un bon navigateur** (§6).
 - Un **site dédié**, et une entrée sur le hub Luth.
@@ -213,19 +214,94 @@ Inventaire, chaque élément animé :
 - **Redimensionner** (repli de la barre, split view) : `setBounds` à chaque frame (`requestAnimationFrame` côté shell, géométrie envoyée au principal) **si** la mesure tient 60 fps. Sinon, même technique de capture que ci-dessus.
 - **Objectif** : aucune frame blanche ni saut visible. Ce point est mesuré au spike, avec un enregistrement à 120 fps comparé image par image.
 
-## 9. Sécurité
+## 9. Sécurité : priorité de premier rang
 
-On reprend le durcissement de Hublink :
-- `sandbox: true` et `contextIsolation` partout ;
-- `openExternal` filtré par protocole parsé ;
-- domaines comparés sur le `hostname` parsé, jamais par `includes` ;
-- `loadExtension` **sans** `allowFileAccess` ;
-- caméra, micro et partage d'écran sur confirmation par origine ;
-- `will-navigate` et `setWindowOpenHandler` du shell qui refusent tout.
+Un navigateur est la porte d'entrée de tout : comptes, banque, mots de passe. La sécurité passe **avant** les fonctionnalités et avant le mouvement : en cas de conflit, elle gagne. Rien dans ce chapitre n'est optionnel.
 
-Les popups héritent de la session de l'ouvreur : ne jamais passer `session` ni `partition` dans `overrideBrowserWindowOptions`.
+### 9.1 Modèle de menaces
 
-Les fenêtres privées utilisent une partition sans préfixe `persist:`. Les extensions n'y sont actives que si l'utilisateur l'autorise pour chacune.
+| Menace | Exemple |
+|---|---|
+| Page web malveillante | Exploit du moteur, phishing, téléchargement piégé, usurpation de l'URL |
+| Extension malveillante ou compromise | Vol de cookies, injection de scripts, mise à jour piégée |
+| Évasion vers l'app | Une page ou une extension qui atteint le shell, l'IPC ou Node |
+| Attaque réseau | Wi‑Fi public, certificat invalide, rétrogradation en HTTP, DNS falsifié |
+| Accès local | Quelqu'un lit le profil sur le disque (cookies, historique) |
+| Chaîne de livraison | Fausse mise à jour, dépendance npm compromise |
+
+### 9.2 Le moteur : rester à jour, c'est la première défense
+
+Le risque n°1 d'un navigateur Electron, c'est un **Chromium en retard** : chaque version de Chrome corrige des failles activement exploitées.
+- On suit **chaque version de sécurité d'Electron sous 72 h**, pour les failles critiques ou exploitées, et sous 2 semaines pour les autres. Ce délai est écrit dans `SECURITY.md`.
+- Montée de version majeure d'Electron à chaque sortie, la branche stable suivie de près.
+- Mises à jour automatiques de l'app, activées par défaut, avec un bandeau insistant si l'utilisateur les repousse.
+- Alerte de veille : un abonnement aux annonces de sécurité d'Electron et de Chrome, et une issue ouverte automatiquement à chaque nouvelle version.
+
+### 9.3 Isolation des process
+
+- `sandbox: true`, `contextIsolation: true`, `nodeIntegration: false` **partout** : shell, onglets, popups, extensions.
+- Site isolation et process-per-site de Chromium laissés actifs, jamais désactivés par un drapeau.
+- **Fuses Electron** (`@electron/fuses`), verrouillés au build : `RunAsNode` off, `EnableNodeOptionsEnvironmentVariable` off, `EnableNodeCliInspectArguments` off, `EnableEmbeddedAsarIntegrityValidation` on, `OnlyLoadAppFromAsar` on, `EnableCookieEncryption` on.
+- Le shell est chargé depuis l'asar, **jamais** depuis le réseau. CSP stricte : `default-src 'self'`, pas de `unsafe-eval`, pas de script distant.
+
+### 9.4 IPC : le shell est la seule porte, et elle est gardée
+
+- Chaque `ipcMain.handle` **vérifie l'expéditeur** (`event.senderFrame` = le shell, origine attendue) et rejette tout le reste. Une page web ou une extension ne peut jamais appeler l'IPC du shell.
+- Chaque message est **validé par un schéma** (types, longueurs, énumérations) avant usage. Les URL sont parsées, avec le protocole et le `hostname` comparés, jamais par `includes`.
+- Le preload n'expose qu'une API minimale et nommée via `contextBridge`. Jamais `ipcRenderer` brut.
+
+### 9.5 Navigation et contenu web
+
+- **HTTPS par défaut** : passage automatique en HTTPS, page d'avertissement avant tout chargement en HTTP, HSTS de Chromium conservé.
+- **Erreurs de certificat** : page d'interstitiel, **jamais** d'acceptation automatique (`certificate-error` refuse par défaut). Une exception n'est possible que par un clic explicite, pour la session seulement.
+- **Navigation sécurisée** : on vérifie les URL contre les listes Google Safe Browsing (API v5, préfixes de hachage stockés en local, l'URL complète ne sort jamais). Page d'alerte pour l'hameçonnage, les logiciels malveillants et les téléchargements dangereux.
+- **DNS sécurisé** (DNS over HTTPS) via `app.configureHostResolver`, en mode automatique par défaut.
+- **Anti-usurpation de l'URL** : domaine enregistrable mis en évidence, IDN affichés en punycode quand ils mélangent les écritures (homographes), avertissement à l'entrée en plein écran, aucune page ne peut dessiner par-dessus la barre latérale.
+- Popups bloquées sans geste utilisateur. Schémas externes (`mailto:`, `zoommtg:`…) sur confirmation, jamais `ms-msdt:` ni `file:` depuis une page web.
+- Cookies tiers bloqués par défaut, bloqueur de traqueurs actif.
+
+### 9.6 Permissions des sites : refus par défaut
+
+- Caméra, micro, partage d'écran, localisation, notifications, presse-papiers, MIDI : **demande par origine**, avec une réponse mémorisée et révocable dans le panneau « Ce site ».
+- Les API d'accès matériel (USB, HID, série, Bluetooth) et l'accès au système de fichiers sont **refusés** au lot 1 (`select-*-device` → aucun périphérique), puis ouverts au cas par cas avec un sélecteur explicite.
+- `setPermissionCheckHandler` et `setPermissionRequestHandler` posés sur **chaque** session, y compris privée, avec un refus par défaut pour toute permission inconnue.
+
+### 9.7 Extensions
+
+- Installation **uniquement** depuis le Chrome Web Store. Le paquet téléchargé est **vérifié** : signature CRX3 du Web Store contrôlée avant décompression. Le dézippeur de Hublink ne le fait pas : c'est à ajouter, ou à confirmer côté `electron-chrome-web-store`. Aucun chargement de dossier local hors mode développeur.
+- `loadExtension` **sans** `allowFileAccess`.
+- **Écran de permissions** à l'installation, en clair (« peut lire et modifier toutes vos données sur tous les sites »), et une nouvelle confirmation si une mise à jour demande plus de droits.
+- Accès aux sites réglable par extension : sur tous les sites, sur certains sites, ou au clic.
+- Désactivées en navigation privée, sauf autorisation explicite par extension.
+- Une extension n'a **aucun** accès au shell ni à l'IPC d'Escale.
+
+### 9.8 Téléchargements
+
+- Fichiers marqués comme venant d'Internet : `com.apple.quarantine` sur macOS et Mark-of-the-Web (`Zone.Identifier`) sur Windows, pour que Gatekeeper et SmartScreen fassent leur travail.
+- Avertissement sur les types dangereux (`.exe`, `.dmg`, `.pkg`, `.app`, `.scr`, `.js`, `.command`…) et vérification Safe Browsing du fichier.
+- Jamais d'ouverture automatique après téléchargement.
+
+### 9.9 Données locales
+
+- Cookies chiffrés (fuse `EnableCookieEncryption`, clé dans le trousseau macOS / DPAPI Windows).
+- `escale.json` et `history.sqlite` en `0600`. Les secrets (jetons, clé de l'API Safe Browsing) passent par `safeStorage`.
+- **Navigation privée** : partition non persistante, effacée à la fermeture, sans historique, sans écriture disque de notre fait.
+- « Effacer les données de navigation » : par période et par type, vraiment effacées (`clearStorageData` + `clearCache` + suppression SQLite + `VACUUM`).
+- **Aucune télémétrie**. Les seuls appels réseau d'Escale lui-même : mises à jour, listes Safe Browsing, suggestions de recherche (désactivables). Tous sont listés dans `SECURITY.md`.
+
+### 9.10 Livraison et chaîne d'approvisionnement
+
+- **Signature du code et notarisation** : Apple Developer ID + notarisation sur macOS, signature Authenticode sur Windows. Pour un navigateur, ce n'est pas négociable : sans signature, les mises à jour automatiques macOS ne fonctionnent pas et l'utilisateur apprend à contourner Gatekeeper. **Coût** : 99 $/an chez Apple, et un certificat Windows (≈ 200 à 400 €/an, ou Azure Trusted Signing ≈ 10 $/mois). **Décision à prendre par l'utilisateur.**
+- Mises à jour par HTTPS avec vérification d'intégrité (sha512 + signature du paquet).
+- Dépendances : versions figées (`package-lock.json`), `npm audit` et Dependabot sur le dépôt, revue de chaque nouvelle dépendance. Le moins de dépendances possible.
+- Build reproductible en CI (GitHub Actions), artefacts publiés depuis la CI et non depuis un poste local.
+
+### 9.11 Contrôle continu
+
+- **Audit à chaque release** : `npm audit`, Electronegativity (scanner de configuration Electron), revue de la checklist officielle de sécurité Electron, revue manuelle de chaque nouvel `ipcMain.handle`.
+- Tests automatisés de sécurité : IPC refusé depuis une page web, popup qui ne sort pas de sa partition, certificat invalide refusé, `file://` inaccessible à une extension, permission inconnue refusée.
+- `SECURITY.md` : comment signaler une faille, délais de réponse, délais de mise à jour d'Electron.
+- Leçons de Hublink conservées : les popups héritent de la session de l'ouvreur (ne jamais passer `session` ni `partition` dans `overrideBrowserWindowOptions`), `openExternal` filtré par protocole parsé, `will-navigate` et `setWindowOpenHandler` du shell qui refusent tout.
 
 ## 10. Tests et vérification
 
