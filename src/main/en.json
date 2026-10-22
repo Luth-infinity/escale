@@ -144,5 +144,12 @@
   "savoir quand vous n'utilisez pas l'ordinateur": "know when you’re not using the computer",
   "Aller à l'onglet": "Switch to tab",
   "Ouvrir": "Open",
-  "Rechercher": "Search"
+  "Rechercher": "Search",
+  "Importer depuis Firefox": "Import from Firefox",
+  "Reprend vos sessions Firefox dans l’espace actif : vous restez connecté aux mêmes sites, Google compris.": "Brings your Firefox sessions into the current space: you stay signed in to the same sites, Google included.",
+  "Aucun profil Firefox trouvé sur cet ordinateur.": "No Firefox profile found on this computer.",
+  "L'import n'a pas abouti.": "The import failed.",
+  "{n} cookies importés dans « {espace} ».": "{n} cookies imported into “{espace}”.",
+  "Importer": "Import",
+  "Import…": "Importing…"
 }

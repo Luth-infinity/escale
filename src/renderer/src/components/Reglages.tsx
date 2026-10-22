@@ -58,6 +58,46 @@ function Interrupteur({ actif, onChange, titre }: { actif: boolean; onChange: (v
   );
 }
 
+type Import = { importes?: number; espace?: string; erreur?: string };
+
+/** Reprendre les sessions de Firefox (cookies) dans l'espace actif. */
+function ImportFirefox() {
+  const [etat, setEtat] = React.useState<'repos' | 'en-cours' | Import>('repos');
+  const lancer = async () => {
+    setEtat('en-cours');
+    try {
+      setEtat((await agir('import.firefox')) as Import);
+    } catch {
+      setEtat({ erreur: 'echec' });
+    }
+  };
+  const resultat =
+    typeof etat === 'object'
+      ? etat.erreur === 'introuvable'
+        ? t('Aucun profil Firefox trouvé sur cet ordinateur.')
+        : etat.erreur
+          ? t("L'import n'a pas abouti.")
+          : t('{n} cookies importés dans « {espace} ».', { n: etat.importes ?? 0, espace: etat.espace ?? '' })
+      : null;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium">{t('Importer depuis Firefox')}</div>
+        <div className="text-[12px] text-shell-muted">
+          {resultat ?? t('Reprend vos sessions Firefox dans l’espace actif : vous restez connecté aux mêmes sites, Google compris.')}
+        </div>
+      </div>
+      <button
+        onClick={lancer}
+        disabled={etat === 'en-cours'}
+        className="h-7 shrink-0 rounded-lg border border-shell-border px-3 text-[12.5px] font-medium hover:bg-shell-hover disabled:opacity-50"
+      >
+        {etat === 'en-cours' ? t('Import…') : t('Importer')}
+      </button>
+    </div>
+  );
+}
+
 export function Reglages({ fermer }: { fermer: () => void }) {
   const transition = useMouvement();
   const fond = useModalePage();
@@ -101,6 +141,7 @@ export function Reglages({ fermer }: { fermer: () => void }) {
               <Interrupteur actif={reglages[i.cle]} titre={t(i.titre)} onChange={(v) => agir('reglages.modifier', { [i.cle]: v })} />
             </div>
           ))}
+          <ImportFirefox />
         </div>
       </motion.div>
     </div>

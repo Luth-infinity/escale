@@ -16,6 +16,7 @@ const suggestions = require('./suggestions');
 const updates = require('./updates');
 const i18n = require('./i18n');
 const dialogue = require('./dialogue');
+const importFirefox = require('./import-firefox');
 
 // Le mode dev se déduit de l'empaquetage seul, jamais d'un argument.
 const isDev = !app.isPackaged;
@@ -151,6 +152,15 @@ app.whenReady().then(() => {
   for (const [nom, { schema, fn }] of Object.entries(ACTIONS)) ipc.action(nom, schema, (p) => fn(contexte, p));
   menusContextuels.declarer({ action: ipc.action, agir, ui, etat, fenetre: () => win });
   ipc.action('app.infos', { type: 'objet', champs: {} }, () => ({ version: app.getVersion() }));
+  // Les sessions de Firefox, dans l'espace actif (voir import-firefox.js). Le
+  // bouton des réglages, qui dit ce qu'il fait, vaut confirmation.
+  ipc.action('import.firefox', { type: 'objet', champs: {} }, async () => {
+    const profil = importFirefox.trouverProfil();
+    if (!profil) return { erreur: 'introuvable' };
+    const espace = etat.lire().espaces.find((e) => e.id === etat.lire().espaceActif);
+    const resultat = await importFirefox.importer(session.fromPartition(espace.partition), importFirefox.lireCookies(profil));
+    return { ...resultat, espace: espace.nom };
+  });
   ipc.action('maj.notes', { type: 'objet', champs: {} }, () =>
     updates.notesFor(app.getVersion(), i18n.getLanguage())
   );
