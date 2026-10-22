@@ -3,6 +3,7 @@ const etat = require('./etat');
 const ipc = require('./ipc');
 const extensions = require('./extensions');
 const adblock = require('./adblock');
+const importFirefox = require('./import-firefox');
 const favicon = require('./favicon');
 const menucontextuel = require('./menucontextuel');
 const securite = require('./securite-pages');
@@ -154,6 +155,7 @@ function hote(url) {
 function cabler(vue, id) {
   const wc = vue.webContents;
   securite.brancherPage(wc, { fenetre: () => fenetre, exceptionsHttp });
+  importFirefox.surveillerRefusGoogle(wc);
 
   wc.on('page-title-updated', (_e, titre) => meta(id, { titre }));
   wc.on('page-favicon-updated', async (_e, icones) => {

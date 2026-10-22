@@ -151,5 +151,9 @@
   "L'import n'a pas abouti.": "The import failed.",
   "{n} cookies importés dans « {espace} ».": "{n} cookies imported into “{espace}”.",
   "Importer": "Import",
-  "Import…": "Importing…"
+  "Import…": "Importing…",
+  "Google refuse la connexion depuis Escale": "Google won’t let you sign in from Escale",
+  "Google bloque les connexions depuis les navigateurs intégrés comme Escale. Escale peut reprendre votre session Google depuis Firefox : connectez-vous d’abord à Google dans Firefox si ce n’est pas fait.": "Google blocks sign-ins from embedded browsers like Escale. Escale can bring over your Google session from Firefox: sign in to Google in Firefox first if you haven’t.",
+  "Google bloque les connexions depuis les navigateurs intégrés comme Escale, et aucun profil Firefox n’a été trouvé pour reprendre votre session.": "Google blocks sign-ins from embedded browsers like Escale, and no Firefox profile was found to bring your session over.",
+  "Réglages (Ctrl+,)": "Settings (Ctrl+,)"
 }

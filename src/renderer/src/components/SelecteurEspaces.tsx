@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
-import { Plus } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 import { agir, commandeLocale, useCommande, useEtat } from '@/etat';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
@@ -86,6 +86,15 @@ export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
         className="grid size-7 place-items-center rounded-md text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"
       >
         <Plus className="size-4" />
+      </button>
+      {/* Hors macOS, la barre de menus est masquée : sans ce bouton, les
+          réglages n'étaient joignables que par Ctrl+, qu'on ne devine pas. */}
+      <button
+        title={t('Réglages (Ctrl+,)')}
+        onClick={() => commandeLocale('reglages')}
+        className="grid size-7 place-items-center rounded-md text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"
+      >
+        <Settings className="size-4" />
       </button>
     </div>
   );
