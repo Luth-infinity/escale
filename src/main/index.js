@@ -166,6 +166,9 @@ app.whenReady().then(() => {
   if (!app.isPackaged && process.argv.includes('--mesures')) {
     require(path.join(__dirname, '../../scripts/mesures-autotest.js'))({ fenetre: win, onglets, etat, ipc, debut: tPret });
   }
+  // --script=<chemin> : un script de diagnostic ponctuel, hors app empaquetée.
+  const script = process.argv.find((a) => a.startsWith('--script='));
+  if (!app.isPackaged && script) require(path.resolve(script.slice(9)))({ fenetre: win, onglets, etat, ipc, agir });
   // Banc de sécurité (scripts/test-securite.js) : jamais dans l'app empaquetée.
   if (!app.isPackaged && process.argv.includes('--test-securite')) {
     require(path.join(__dirname, '../../scripts/securite-autotest.js'))({ fenetre: win, onglets, etat, ipc, agir });
