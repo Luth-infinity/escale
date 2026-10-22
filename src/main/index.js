@@ -122,6 +122,22 @@ function creerFenetre() {
       ui('barre-quitter');
     }, 100);
   });
+  // Le réveil, par le pointeur et pas par le DOM : sous Windows, les premiers
+  // pixels du bord d'une fenêtre sans cadre servent à la redimensionner et
+  // n'envoient aucun survol à la page ; la bande du shell ne recevait rien.
+  let veille = 0;
+  const surveillerBord = () => {
+    clearInterval(veille);
+    if (!etat.reglages().barreMasquee) return;
+    veille = setInterval(() => {
+      if (win.isDestroyed()) return clearInterval(veille);
+      if (barreSurvolee || !win.isVisible() || win.isMinimized()) return;
+      const c = screen.getCursorScreenPoint();
+      const b = win.getContentBounds();
+      if (c.x >= b.x - 6 && c.x <= b.x + 10 && c.y >= b.y && c.y <= b.y + b.height) ui('barre-reveler');
+    }, 80);
+  };
+  surveillerBord();
   feux();
   // Les symboles des boutons suivent le thème clair / sombre.
   if (process.platform !== 'darwin') {
@@ -131,6 +147,7 @@ function creerFenetre() {
   }
   etat.ecouter((d) => {
     if (d.type === 'settings:changed' && ('barreRepliee' in d.patch || 'barreMasquee' in d.patch)) feux();
+    if (d.type === 'settings:changed' && 'barreMasquee' in d.patch) surveillerBord();
   });
   win.once('ready-to-show', () => win.show());
   win.loadURL(URL_SHELL);

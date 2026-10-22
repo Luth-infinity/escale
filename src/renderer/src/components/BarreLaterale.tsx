@@ -84,6 +84,7 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
       agir('barre.masquer', { oui: !masquee });
     }
     if (nom === 'barre-quitter') setSurvol(false);
+    if (nom === 'barre-reveler') reveler();
   });
   const reveler = () => {
     if (!masquee || survol) return;
