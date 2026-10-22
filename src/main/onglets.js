@@ -96,6 +96,7 @@ function assurerSession(espace) {
   securite.brancherSession(ses, { fenetre: () => fenetre });
   securite.servirPagesInternes(ses);
   adblock.applyTo(ses, () => etat.reglages().bloqueur);
+  ua.brancherSession(ses);
   ses.setSpellCheckerLanguages(['fr', 'en-US']);
   p = extensions.brancherSession(ses).then(() => ses);
   sessionsEspace.set(espace.id, p);

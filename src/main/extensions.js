@@ -177,6 +177,10 @@ async function brancherSession(ses, { prive = false } = {}) {
     }
   });
   ece.on('browser-action-popup-created', ajusterPopup);
+  // Après celui de la lib : chrome.privacy qui répond (preload-extensions.js).
+  for (const type of ['frame', 'service-worker']) {
+    ses.registerPreloadScript({ id: `escale-privacy-${type}`, type, filePath: path.join(__dirname, 'preload-extensions.js') });
+  }
   branchees.set(ses, { ece, prive });
   // Une seule session vérifie les mises à jour : elles écrivent toutes dans le
   // même dossier, et la propagation met les autres à niveau.

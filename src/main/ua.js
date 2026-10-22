@@ -35,4 +35,32 @@ function suivre(wc) {
   });
 }
 
-module.exports = { CHROME_UA, suivre };
+// Electron n'envoie pas les Client Hints (sec-ch-ua…) que tout Chromium joint à
+// ses requêtes, alors que navigator.userAgentData les expose à la page. Les
+// services anti-robots voient l'écart et sortent leurs captchas. On les ajoute,
+// avec exactement les marques que voit la page (Chromium, jamais Google
+// Chrome). Pas sur accounts.google.com, où l'UA réel passe déjà.
+const MAJEURE = process.versions.chrome.split('.')[0];
+const CLIENT_HINTS = {
+  'sec-ch-ua': `"Chromium";v="${MAJEURE}", "Not:A-Brand";v="8"`,
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': process.platform === 'darwin' ? '"macOS"' : process.platform === 'win32' ? '"Windows"' : '"Linux"'
+};
+
+function brancherSession(ses) {
+  ses.webRequest.onBeforeSendHeaders({ urls: ['https://*/*'] }, (details, rappel) => {
+    let hote = '';
+    try {
+      hote = new URL(details.url).hostname;
+    } catch {
+      // Adresse illisible : rien à ajouter.
+    }
+    if (HOTES_UA_REEL.has(hote)) return rappel({});
+    const entetes = { ...details.requestHeaders };
+    const presents = new Set(Object.keys(entetes).map((k) => k.toLowerCase()));
+    for (const [k, v] of Object.entries(CLIENT_HINTS)) if (!presents.has(k)) entetes[k] = v;
+    rappel({ requestHeaders: entetes });
+  });
+}
+
+module.exports = { CHROME_UA, suivre, brancherSession };
