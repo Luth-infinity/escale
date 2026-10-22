@@ -179,7 +179,39 @@ Les trois signatures d'Escale :
 2. **Accent propre** : un vert d'eau profond, autour de `oklch(0.56 0.10 190)` en clair et `oklch(0.72 0.10 190)` en sombre. Il est réservé à l'onglet actif, au focus, aux contrôles cochés et au logo. Il est à valider visuellement, avec un contraste d'au moins 4,5:1 sur le texte qu'il porte.
 3. **Teinte par dossier ou espace** : on reprend la mécanique de Hublink (`surface` et `line` dérivées, `adaptSpaceHue`), avec les mêmes dosages **très légers** et jamais d'aplat. C'est l'espace qui teinte la barre latérale ; un dossier ne teinte que son propre en-tête et sa ligne de rappel.
 
-Garde-fous anti « vibe coded » : pas de glassmorphism, pas de dégradé, pas de `border-left` coloré arrondi, aucune animation qui ne serve à rien. Seules animations prévues : le repli des dossiers (120 ms), le glisser-déposer et l'ouverture de la barre de commande (100 ms), toutes désactivées sous `prefers-reduced-motion`.
+Garde-fous anti « vibe coded » : pas de glassmorphism, pas de dégradé, pas de `border-left` coloré arrondi.
+
+### Mouvement : un outil premium, rien d'instantané
+
+Demande explicite : **tout est animé, de façon ultra fluide**. Aucun changement d'état ne « saute » au clic. L'animation sert la continuité : on voit d'où vient un élément et où il va. Ce n'est jamais un effet décoratif (pas de rebond gratuit, pas de pulsation, pas de parallaxe).
+
+Règles :
+- **Ressorts plutôt que courbes fixes** : physique de ressort critique, sans rebond visible. Une animation est **interruptible** : recliquer en cours de route repart de la position courante, sans saut ni file d'attente.
+- **Retour immédiat, mouvement court** : l'état pressé s'affiche à la première frame, puis le mouvement dure 150 à 250 ms. Le premium vient de la fluidité, pas de la lenteur. Les cibles de latence du §5 restent valables.
+- **GPU seulement** : uniquement `transform` et `opacity`, jamais `width`, `height`, `top` ni `margin`. Hauteurs de dossier en FLIP (mesure, puis `transform`).
+- **Moteur** : `motion` (ex-Framer Motion) pour les ressorts, `layout` et `AnimatePresence`. La liste virtualisée garde ses animations par ligne.
+- `prefers-reduced-motion` : les mouvements deviennent des fondus de 100 ms, jamais des sauts.
+
+Inventaire, chaque élément animé :
+
+| Élément | Animation |
+|---|---|
+| Ouvrir / fermer un onglet | La ligne naît en hauteur + fondu ; les voisines glissent (layout) |
+| Glisser-déposer | L'élément suit le pointeur avec une légère inertie, les autres s'écartent, puis il atterrit en ressort |
+| Dossier | Repli / dépli en FLIP, chevron en rotation, enfants en cascade (20 ms d'écart, 5 max) |
+| Onglet actif | Le fond de sélection **glisse** d'une ligne à l'autre (élément partagé `layoutId`) |
+| Changement d'espace | La liste coulisse latéralement, suivant le doigt sur le trackpad ; la teinte du panneau passe en fondu |
+| Barre de commande | Échelle 0,98 → 1 + fondu ; résultats qui se réordonnent en layout |
+| Panneaux (historique, téléchargements, réglages) | Glissement depuis leur bord + fondu |
+| Repli de la barre latérale | Largeur animée vers le rail d'icônes ; la page encadrée suit en continu |
+| Split view | Les vues se redimensionnent en continu à la séparation et à la fermeture |
+| Menus, survols, focus | Fondu de 80 à 120 ms ; anneau de focus qui apparaît sans saut |
+| Téléchargement, chargement | Progression continue, jamais par paliers |
+
+**Contrainte technique, la page web elle-même.** Une `WebContentsView` est une surface native : le CSS ne peut pas l'animer. Les parades, à valider dans le spike :
+- **Changer d'onglet** : capturer la vue sortante (`capturePage()`, quelques ms), poser l'image dans le shell, masquer la vue, faire le fondu ou le glissement en HTML, puis révéler la vue entrante. On garde une capture récente par onglet vivant pour qu'il n'y ait aucune attente au clic.
+- **Redimensionner** (repli de la barre, split view) : `setBounds` à chaque frame (`requestAnimationFrame` côté shell, géométrie envoyée au principal) **si** la mesure tient 60 fps. Sinon, même technique de capture que ci-dessus.
+- **Objectif** : aucune frame blanche ni saut visible. Ce point est mesuré au spike, avec un enregistrement à 120 fps comparé image par image.
 
 ## 9. Sécurité
 
