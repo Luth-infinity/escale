@@ -120,4 +120,39 @@ async function notesFor(version, lang = 'fr') {
   }
 }
 
-module.exports = { check, watch, isNewer, notesFor };
+/**
+ * Installation automatique, Windows seulement (repris de Hublink).
+ *
+ * macOS l'exige signée et notariée (Squirrel.Mac), donc un compte développeur
+ * Apple payant : on y reste sur le signalement et le téléchargement à la main.
+ * Sous Windows rien n'est requis ; electron-updater télécharge lui-même, sans
+ * « Mark of the Web », donc sans alerte SmartScreen, et l'installation par
+ * utilisateur évite l'invite UAC.
+ */
+function canInstall() {
+  return process.platform === 'win32' && app.isPackaged;
+}
+
+/**
+ * Télécharge en arrière-plan puis rend la main : c'est l'utilisateur qui
+ * choisit quand redémarrer, la fenêtre ne se ferme jamais au milieu d'un travail.
+ */
+function download(onProgress) {
+  if (!canInstall()) return Promise.reject(new Error('Installation automatique indisponible'));
+  // Chargé à la demande : le module ne sert que sous Windows.
+  const { autoUpdater } = require('electron-updater');
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.removeAllListeners('download-progress');
+  autoUpdater.on('download-progress', (p) => onProgress(Math.round(p.percent)));
+  return autoUpdater.checkForUpdates().then(() => autoUpdater.downloadUpdate());
+}
+
+/** Ferme Escale et lance l'installeur déjà téléchargé ; Escale se rouvre ensuite. */
+function install() {
+  if (!canInstall()) return;
+  const { autoUpdater } = require('electron-updater');
+  autoUpdater.quitAndInstall(true, true);
+}
+
+module.exports = { check, watch, isNewer, notesFor, canInstall, download, install };

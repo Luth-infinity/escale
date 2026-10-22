@@ -36,6 +36,7 @@ export type Delta =
   | { type: 'ui:commande'; nom: string; id?: string; t?: number }
   | { type: 'page:transition'; de: string; vers: string | null }
   | { type: 'update:available'; version: string; url: string; page: string; notes: string }
+  | { type: 'update:progress'; pourcent?: number; pret?: boolean; erreur?: string }
   | ({ type: 'dialogue:ouvrir' } & Question)
   | ({ type: 'video:etat' } & VideoEtat);
 

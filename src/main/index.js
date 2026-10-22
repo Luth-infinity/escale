@@ -239,6 +239,16 @@ app.whenReady().then(() => {
     // Seulement une page de GitHub : jamais une adresse arbitraire venue du shell.
     if (/^https:\/\/github\.com\/Luth-infinity\/escale\//.test(url)) shell.openExternal(url);
   });
+  // Installation automatique (Windows) : télécharger en montrant la progression, puis redémarrer à la demande.
+  const RIEN = { type: 'objet', champs: {} };
+  ipc.action('maj.peutInstaller', RIEN, () => updates.canInstall());
+  ipc.action('maj.telecharger', RIEN, () =>
+    updates
+      .download((pourcent) => ipc.emettre({ type: 'update:progress', pourcent }))
+      .then(() => ipc.emettre({ type: 'update:progress', pourcent: 100, pret: true }))
+      .catch((e) => ipc.emettre({ type: 'update:progress', erreur: e.message }))
+  );
+  ipc.action('maj.installer', RIEN, () => updates.install());
   const verifierAuRetour = updates.watch((maj) => ipc.emettre({ type: 'update:available', ...maj }));
   app.on('browser-window-focus', verifierAuRetour);
   ipc.action('commande.suggestions', { type: 'objet', champs: { texte: { type: 'string', max: 500 } } }, ({ texte }) =>

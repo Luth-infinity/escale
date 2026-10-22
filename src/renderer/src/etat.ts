@@ -7,7 +7,7 @@ import type { Delta, Etat, Nav, Question, VideoEtat } from './types';
  * onglet inchangé reçoit la même référence, et sa ligne ne se rerend pas.
  */
 type Vivant = { vivant: boolean; son: boolean };
-type MiseAJour = { version: string; url: string };
+type MiseAJour = { version: string; url: string; page?: string; pourcent?: number; pret?: boolean; erreur?: string };
 type Store = {
   etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivant>; maj: MiseAJour | null; questions: Question[];
   videos: VideoEtat[];
@@ -66,7 +66,8 @@ export async function demarrer() {
       return publier({ ...store, nav });
     }
     if (d.type === 'tab:etat') return publier({ ...store, vivants: { ...store.vivants, [d.id]: { vivant: d.vivant, son: d.son } } });
-    if (d.type === 'update:available') return publier({ ...store, maj: { version: d.version, url: d.url } });
+    if (d.type === 'update:available') return publier({ ...store, maj: { version: d.version, url: d.url, page: d.page } });
+    if (d.type === 'update:progress') return store.maj ? publier({ ...store, maj: { ...store.maj, pourcent: d.pourcent, pret: d.pret, erreur: d.erreur } }) : undefined;
     if (d.type === 'video:etat') {
       const { type: _t, ...v } = d;
       const avant = store.videos.find((x) => x.id === v.id);
