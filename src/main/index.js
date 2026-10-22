@@ -9,6 +9,7 @@ const historique = require('./historique');
 const extensions = require('./extensions');
 const onglets = require('./onglets');
 const menu = require('./menu');
+const menusContextuels = require('./menus-contextuels');
 const { ACTIONS } = require('./actions');
 
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
@@ -27,7 +28,7 @@ app.userAgentFallback = CHROME_UA;
 let win = null;
 const contexte = { etat, onglets, fermes: [] };
 const agir = (nom, payload) => ACTIONS[nom].fn(contexte, payload);
-const ui = (nom) => ipc.emettre({ type: 'ui:commande', nom });
+const ui = (nom, id) => ipc.emettre({ type: 'ui:commande', nom, ...(id ? { id } : {}) });
 const reconstruireMenu = () => menu.construire({ agir, ui, onglets, etat });
 const dossierDonnees = () => app.getPath('userData');
 
@@ -96,6 +97,7 @@ app.whenReady().then(() => {
   extensions.brancherShell(session.defaultSession);
   ipc.handle('etat:initial', { type: 'objet', champs: {} }, () => etat.lire());
   for (const [nom, { schema, fn }] of Object.entries(ACTIONS)) ipc.action(nom, schema, (p) => fn(contexte, p));
+  menusContextuels.declarer({ action: ipc.action, agir, ui, etat, fenetre: () => win });
   reconstruireMenu();
   // Le menu porte la liste des espaces (Ctrl+1…9) : il suit leurs changements.
   etat.ecouter((d) => {
@@ -107,6 +109,14 @@ app.whenReady().then(() => {
   fermerInactifs();
   setInterval(fermerInactifs, 10 * 60e3).unref();
   creerFenetre();
+  // Outils de dev : jamais dans l'app empaquetée.
+  const apercu = process.argv.find((a) => a.startsWith('--apercu='));
+  if (!app.isPackaged && apercu) {
+    require(path.join(__dirname, '../../scripts/apercu.js'))({ fenetre: win, onglets, etat, agir, sortie: apercu.slice(9) });
+  }
+  if (!app.isPackaged && process.argv.includes('--perf-liste')) {
+    win.webContents.once('did-finish-load', () => require(path.join(__dirname, '../../scripts/perf-liste.js'))({ fenetre: win, etat }));
+  }
   // Banc de sécurité (scripts/test-securite.js) : jamais dans l'app empaquetée.
   if (!app.isPackaged && process.argv.includes('--test-securite')) {
     require(path.join(__dirname, '../../scripts/securite-autotest.js'))({ fenetre: win, onglets, etat, ipc, agir });

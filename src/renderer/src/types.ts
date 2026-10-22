@@ -7,9 +7,15 @@ export type Onglet = {
   id: string; espaceId: string; dossierId: string | null; epingle: boolean; url: string; titre: string;
   favicon: string | null; ordre: string; derniereActivite: number; muet: boolean; zoom: number;
 };
+export type Reglages = {
+  fermetureAutoHeures: number; veilleMinutes: number; bloqueur: boolean; suggestions: boolean; moteur: string;
+  langue: string; theme: string; barreRepliee: boolean; zoom: Record<string, number>;
+};
 export type Etat = {
   version: 1; espaces: Espace[]; dossiers: Dossier[]; onglets: Onglet[]; espaceActif: string; ongletActif: string | null;
+  reglages: Reglages;
 };
+export type Nav = { id: string; url: string; peutReculer: boolean; peutAvancer: boolean; chargement: boolean };
 export type Delta =
   | { type: 'tab:added'; onglet: Onglet }
   | { type: 'tab:removed'; id: string; onglet: Onglet }
@@ -21,7 +27,24 @@ export type Delta =
   | { type: 'space:added'; espace: Espace }
   | { type: 'space:removed'; id: string }
   | { type: 'space:changed'; id: string; patch: Partial<Espace> }
-  | { type: 'active:changed'; espaceActif: string; ongletActif: string | null };
+  | { type: 'active:changed'; espaceActif: string; ongletActif: string | null }
+  | { type: 'tab:etat'; id: string; vivant: boolean; son: boolean }
+  | ({ type: 'nav:state' } & Nav)
+  | { type: 'settings:changed'; patch: Partial<Reglages> }
+  | { type: 'ui:commande'; nom: string; id?: string };
+
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      // Fournie par electron-chrome-extensions (preload du shell).
+      'browser-action-list': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        partition?: string;
+        alignment?: string;
+        tab?: number;
+      };
+    }
+  }
+}
 
 declare global {
   interface Window {

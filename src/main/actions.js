@@ -130,6 +130,7 @@ const ACTIONS = {
     schema: objet({ sansCache: opt(OUI) }),
     fn: (ctx, { sansCache }) => (sansCache ? wcCourant(ctx)?.reloadIgnoringCache() : wcCourant(ctx)?.reload())
   },
+  'nav.arreter': { schema: RIEN, fn: (ctx) => wcCourant(ctx)?.stop() },
   'nav.aller': {
     schema: objet({ url: URL_ }),
     fn: (ctx, { url }) => {
