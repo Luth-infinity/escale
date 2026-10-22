@@ -128,10 +128,13 @@ function isBlocked(hostname) {
  * que de réinstaller l'écouteur : le basculement prend effet aussitôt.
  *
  * C'est le seul écouteur webRequest de la session : Electron n'en garde qu'un,
- * la montée en HTTPS passe donc par les événements de navigation (onglets.js).
+ * la montée en HTTPS passe donc par les événements de navigation (onglets.js),
+ * et `observer` le partage avec les extensions.
  */
-function applyTo(session, actif) {
+function applyTo(session, actif, observer = () => {}) {
   session.webRequest.onBeforeRequest({ urls: ['*://*/*'] }, (details, callback) => {
+    // Les extensions voient passer la requête, bloquée ou non (webrequest-ext.js).
+    observer(details);
     if (!actif()) return callback({});
     // Une navigation principale reste toujours permise : taper une adresse à la
     // main ne doit jamais aboutir sur une page morte.

@@ -3,6 +3,7 @@ const dialogue = require('./dialogue');
 const path = require('node:path');
 const crx = require('./crx');
 const P = require('./permissions-ext');
+const { versChrome } = require('./webrequest-ext');
 const { t } = require('./i18n');
 
 /**
@@ -164,6 +165,12 @@ function ajusterPopup(popup) {
 /** À appeler avant le premier loadURL d'une session. */
 async function brancherSession(ses, { prive = false } = {}) {
   if (branchees.has(ses)) return;
+  // Avant la lib : son preload fige `chrome` une fois ses API posées.
+  ses.registerPreloadScript({
+    id: 'escale-webrequest',
+    type: 'service-worker',
+    filePath: path.join(__dirname, '../preload/webrequest-ext.js')
+  });
   const ece = new ElectronChromeExtensions({
     license: 'GPL-3.0',
     session: ses,
@@ -194,6 +201,14 @@ async function brancherSession(ses, { prive = false } = {}) {
     beforeInstall: demanderAccord
   });
   if (!prive) ses.extensions.on('extension-loaded', (_e, ext) => propager(ext, ses));
+}
+
+/** Relaie une requête aux extensions qui écoutent webRequest.onBeforeRequest. */
+function diffuserRequete(ses, details) {
+  const router = branchees.get(ses)?.ece.ctx.router;
+  if (!router?.listeners.get('webRequest.onBeforeRequest')?.length) return;
+  // Sans webContents, la requête vient d'un service worker : pas d'onglet (-1).
+  router.broadcastEvent('webRequest.onBeforeRequest', versChrome(details, Boolean(details.webContents)));
 }
 
 const sessionDe = (wc) => [...branchees].find(([ses]) => ses === wc.session)?.[1];
@@ -233,6 +248,6 @@ function brancherShell(ses) {
 }
 
 module.exports = {
-  definirPont, brancherSession, brancherShell, ajouterOnglet, retirerOnglet, activerOnglet, menuContextuel,
+  definirPont, brancherSession, brancherShell, diffuserRequete, ajouterOnglet, retirerOnglet, activerOnglet, menuContextuel,
   retirer, lister
 };

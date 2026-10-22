@@ -112,7 +112,7 @@ function assurerSession(espace) {
   const ses = sessions.fromPartition(espace.partition);
   securite.brancherSession(ses, { fenetre: () => fenetre });
   securite.servirPagesInternes(ses);
-  adblock.applyTo(ses, () => etat.reglages().bloqueur);
+  adblock.applyTo(ses, () => etat.reglages().bloqueur, (d) => extensions.diffuserRequete(ses, d));
   ua.brancherSession(ses);
   ses.setSpellCheckerLanguages(['fr', 'en-US']);
   p = extensions.brancherSession(ses, { prive: Boolean(espace.prive) }).then(() => ses);
