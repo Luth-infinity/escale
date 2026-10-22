@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { Plus } from 'lucide-react';
-import { agir, lireEtat } from '@/etat';
+import { FolderPlus, Plus } from 'lucide-react';
+import { agir, commandeLocale, lireEtat } from '@/etat';
 import type { Ligne } from '@/lib/aplatir';
 import { cibleDepot, sansElement } from '@/lib/depot';
 import { useMouvement } from '@/lib/ressorts';
@@ -151,17 +151,29 @@ export function Liste({ lignes, enRenommage, finRenommage, nouvelOnglet, rail }:
     ) : l.type === 'dossier' ? (
       <LigneDossier id={l.id} profondeur={l.profondeur} enRenommage={enRenommage === l.id} finRenommage={finRenommage} rail={rail} />
     ) : (
-      <button
-        onClick={nouvelOnglet}
-        title={t('Nouvel onglet')}
-        className={cn(
-          'flex h-full w-full items-center gap-2 rounded-md text-[13px] text-shell-muted transition-colors duration-100 hover:bg-shell-hover hover:text-shell-foreground',
-          rail ? 'justify-center' : 'px-2'
+      <div className="group flex h-full items-center">
+        <button
+          onClick={nouvelOnglet}
+          title={t('Nouvel onglet')}
+          className={cn(
+            'flex h-full min-w-0 flex-1 items-center gap-2 rounded-md text-[13px] text-shell-muted transition-colors duration-100 hover:bg-shell-hover hover:text-shell-foreground',
+            rail ? 'justify-center' : 'px-2'
+          )}
+        >
+          <Plus className="size-4 shrink-0" />
+          {!rail && t('Nouvel onglet')}
+        </button>
+        {/* Les dossiers étaient cachés derrière le clic droit sur l'espace. */}
+        {!rail && (
+          <button
+            onClick={async () => commandeLocale('renommer', (await agir('dossier.creer', { nom: t('Nouveau dossier') })) as string)}
+            title={t('Nouveau dossier')}
+            className="grid size-7 shrink-0 place-items-center rounded-md text-shell-muted transition-colors duration-100 hover:bg-shell-hover hover:text-shell-foreground"
+          >
+            <FolderPlus className="size-4" />
+          </button>
         )}
-      >
-        <Plus className="size-4 shrink-0" />
-        {!rail && t('Nouvel onglet')}
-      </button>
+      </div>
     );
 
   const sortie = (id: string) => (presentes.has(id) ? { opacity: 1, transition: { duration: 0 } } : { opacity: 0, scaleY: 0.6, transition });

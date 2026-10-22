@@ -25,8 +25,30 @@ function declarer({ action, agir, ui, etat, fenetre }) {
   action('menu.onglet', id36, ({ id }) => {
     const o = etat.lire().onglets.find((x) => x.id === id);
     if (!o) return;
+    // Les dossiers de l'espace de l'onglet, par ordre alphabétique.
+    const dossiers = etat
+      .lire()
+      .dossiers.filter((d) => d.espaceId === o.espaceId)
+      .sort((a, b) => a.nom.localeCompare(b.nom));
+    const vers = (dossierId) => agir('onglet.deplacer', { id, type: 'onglet', dossierId });
     montrer([
       { label: o.epingle ? t('Désépingler') : t('Épingler'), click: () => agir('onglet.epingler', { id, oui: !o.epingle }) },
+      {
+        label: t('Déplacer vers un dossier'),
+        submenu: [
+          ...dossiers.map((d) => ({ label: d.nom, type: 'radio', checked: o.dossierId === d.id, click: () => vers(d.id) })),
+          ...(dossiers.length ? [{ type: 'separator' }] : []),
+          ...(o.dossierId ? [{ label: t('Sortir du dossier'), click: () => vers(null) }] : []),
+          {
+            label: t('Nouveau dossier'),
+            click: () => {
+              const dossierId = agir('dossier.creer', { espaceId: o.espaceId, nom: t('Nouveau dossier') });
+              vers(dossierId);
+              ui('renommer', dossierId);
+            }
+          }
+        ]
+      },
       { label: t('Dupliquer'), click: () => agir('onglet.dupliquer', { id }) },
       { label: o.muet ? t('Rétablir le son') : t('Couper le son'), click: () => agir('onglet.muet', { id, oui: !o.muet }) },
       { label: t("Copier l'adresse"), click: () => clipboard.writeText(o.url) },

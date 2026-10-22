@@ -100,6 +100,90 @@ function ImportFirefox() {
   );
 }
 
+// Les mêmes teintes que le menu du clic droit (menus-contextuels.js).
+const TEINTES = ['#3a7f6b', '#3b6fb6', '#6d5bb8', '#b9577c', '#b5523b', '#a9832c', '#5c7a3a', '#5b6472'];
+const EMOJIS = ['🏠', '💼', '🎮', '🎨', '📚', '🎧', '✈️', '🛒', '💻', '⚽'];
+
+/**
+ * Le profil, c'est l'espace actif : la pastille du bas de la barre porte son
+ * initiale, ou son emoji, sur sa couleur.
+ */
+function Profil() {
+  const espace = useEtat((e) => e.espaces.find((x) => x.id === e.espaceActif));
+  const [nom, setNom] = React.useState(espace?.nom ?? '');
+  React.useEffect(() => setNom(espace?.nom ?? ''), [espace?.id, espace?.nom]);
+  if (!espace) return null;
+  const modifier = (patch: Record<string, unknown>) => agir('espace.modifier', { id: espace.id, ...patch });
+  const valider = () => {
+    const propre = nom.trim().slice(0, 80);
+    if (propre && propre !== espace.nom) modifier({ nom: propre });
+    else setNom(espace.nom);
+  };
+  const pastille = 'grid size-7 place-items-center rounded-full transition-transform duration-150 hover:scale-110';
+  return (
+    <div className="space-y-2.5 rounded-xl border border-shell-border p-3">
+      <div className="flex items-center gap-3">
+        <span
+          className="grid size-10 shrink-0 place-items-center rounded-full text-[15px] font-semibold text-white"
+          style={{ background: espace.teinte || 'var(--accent-escale)' }}
+        >
+          {espace.icone || espace.nom.charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[12px] text-shell-muted">{t('Profil de l’espace actif')}</div>
+          <input
+            value={nom}
+            onChange={(e) => setNom(e.target.value)}
+            onBlur={valider}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            aria-label={t('Nom')}
+            className="mt-0.5 h-7 w-full rounded-md bg-shell-input px-2 text-[13px] font-medium outline-none focus:ring-1 focus:ring-shell-border"
+          />
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
+        <button title={t('Initiale')} onClick={() => modifier({ icone: null })} className={cn(pastille, 'text-[11px] font-semibold', !espace.icone && 'bg-shell-active')}>
+          {espace.nom.charAt(0).toUpperCase()}
+        </button>
+        {EMOJIS.map((e) => (
+          <button key={e} onClick={() => modifier({ icone: e })} className={cn(pastille, 'text-[15px]', espace.icone === e && 'bg-shell-active')}>
+            {e}
+          </button>
+        ))}
+        <input
+          maxLength={4}
+          placeholder="🙂"
+          aria-label={t('Autre emoji')}
+          onKeyDown={(e) => {
+            const v = (e.target as HTMLInputElement).value.trim();
+            if (e.key === 'Enter' && v) {
+              modifier({ icone: v });
+              (e.target as HTMLInputElement).value = '';
+            }
+          }}
+          className="h-7 w-12 rounded-md bg-shell-input px-1.5 text-center text-[13px] outline-none focus:ring-1 focus:ring-shell-border"
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button
+          title={t('Aucune')}
+          onClick={() => modifier({ teinte: null })}
+          className={cn('size-6 rounded-full border border-shell-border', !espace.teinte && 'ring-2 ring-shell-foreground/40 ring-offset-1 ring-offset-shell-raised')}
+          style={{ background: 'var(--accent-escale)' }}
+        />
+        {TEINTES.map((c) => (
+          <button
+            key={c}
+            onClick={() => modifier({ teinte: c })}
+            className={cn('size-6 rounded-full transition-transform duration-150 hover:scale-110', espace.teinte === c && 'ring-2 ring-shell-foreground/40 ring-offset-1 ring-offset-shell-raised')}
+            style={{ background: c }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Reglages({ fermer }: { fermer: () => void }) {
   const transition = useMouvement();
   const fond = useModalePage();
@@ -128,6 +212,7 @@ export function Reglages({ fermer }: { fermer: () => void }) {
           </button>
         </div>
         <div className="space-y-4">
+          <Profil />
           {CHOIX.map((c) => (
             <div key={String(c.cle)} className="space-y-1.5">
               <div className="text-[12.5px] font-medium text-shell-muted">{t(c.titre)}</div>

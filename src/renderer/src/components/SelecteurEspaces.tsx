@@ -7,7 +7,7 @@ import { t } from '@/lib/i18n';
 import { ChampNom } from './LigneDossier';
 import { useMouvement } from '@/lib/ressorts';
 
-function Pastille({ nom, teinte, active }: { nom: string; teinte: string | null; active: boolean }) {
+function Pastille({ nom, icone, teinte, active }: { nom: string; icone: string | null; teinte: string | null; active: boolean }) {
   const transition = useMouvement();
   return (
     <span className="relative grid size-5 place-items-center">
@@ -19,7 +19,7 @@ function Pastille({ nom, teinte, active }: { nom: string; teinte: string | null;
         className={cn('grid size-5 place-items-center rounded-full text-[10px] font-semibold transition-colors duration-200', active ? 'text-white' : 'text-shell-muted')}
         style={{ background: active ? teinte || 'var(--accent-escale)' : 'var(--shell-active)' }}
       >
-        {nom.charAt(0).toUpperCase()}
+        {icone ? <span className="text-[12px] leading-none">{icone}</span> : nom.charAt(0).toUpperCase()}
       </span>
     </span>
   );
@@ -127,7 +127,7 @@ export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
           }}
           className="grid size-7 place-items-center rounded-md transition-colors hover:bg-shell-hover"
         >
-          <Pastille nom={e.nom} teinte={e.teinte} active={e.id === actif} />
+          <Pastille nom={e.nom} icone={e.icone} teinte={e.teinte} active={e.id === actif} />
         </button>
       ))}
       {!rail && <span className="flex-1" />}

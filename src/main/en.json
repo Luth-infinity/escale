@@ -191,5 +191,11 @@
   "Téléchargement": "Downloading",
   "Téléchargement terminé": "Download complete",
   "Sponsor passé": "Sponsor skipped",
-  "Autopromotion passée": "Self-promotion skipped"
+  "Autopromotion passée": "Self-promotion skipped",
+  "Déplacer vers un dossier": "Move to folder",
+  "Sortir du dossier": "Remove from folder",
+  "Profil de l’espace actif": "Current space profile",
+  "Nom": "Name",
+  "Initiale": "Initial",
+  "Autre emoji": "Other emoji"
 }
