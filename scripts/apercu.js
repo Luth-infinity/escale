@@ -3,7 +3,7 @@ const fs = require('node:fs');
 
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 
-module.exports = async function apercu({ fenetre, onglets, etat, agir, sortie }) {
+function remplir({ onglets, etat, agir }) {
   const e = etat.lire();
   if (e.onglets.length === 0) {
     const esp = e.espaceActif;
@@ -29,6 +29,10 @@ module.exports = async function apercu({ fenetre, onglets, etat, agir, sortie })
     agir('espace.creer', { nom: 'Boulot', teinte: '#3b6fb6' });
     agir('espace.activer', { id: esp });
   }
+}
+
+module.exports = async function apercu({ fenetre, onglets, etat, agir, sortie }) {
+  remplir({ onglets, etat, agir });
   await attendre(6000);
   const diag = await fenetre.webContents.executeJavaScript(
     "JSON.stringify({ html: document.getElementById('root').innerHTML.length, escale: typeof window.escale, bal: !!customElements.get('browser-action-list') })"
@@ -42,3 +46,4 @@ module.exports = async function apercu({ fenetre, onglets, etat, agir, sortie })
   if (id) fs.writeFileSync(`${sortie}-page.png`, (await onglets.webContentsDe(id).capturePage()).toPNG());
   if (!process.argv.includes('--garder')) require('electron').app.exit(0);
 };
+module.exports.remplir = remplir;

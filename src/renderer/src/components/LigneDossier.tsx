@@ -7,8 +7,8 @@ import { HAUTEUR_LIGNE } from './LigneOnglet';
 const RETRAIT = 14;
 
 export const LigneDossier = React.memo(function LigneDossier({
-  id, profondeur, enRenommage, finRenommage
-}: { id: string; profondeur: number; enRenommage: boolean; finRenommage: () => void }) {
+  id, profondeur, enRenommage, finRenommage, rail = false
+}: { id: string; profondeur: number; enRenommage: boolean; finRenommage: () => void; rail?: boolean }) {
   const dossier = useEtat((e) => e.dossiers.find((d) => d.id === id));
   if (!dossier) return null;
   const Icone = dossier.replie ? Folder : FolderOpen;
@@ -22,12 +22,18 @@ export const LigneDossier = React.memo(function LigneDossier({
         e.preventDefault();
         agir('menu.dossier', { id });
       }}
-      style={{ height: HAUTEUR_LIGNE, paddingLeft: 4 + profondeur * RETRAIT }}
-      className="group flex items-center gap-1.5 rounded-md pr-1.5 outline-none select-none hover:bg-shell-hover focus-visible:ring-2 focus-visible:ring-accent-escale/60"
+      title={rail ? dossier.nom : undefined}
+      style={{ height: HAUTEUR_LIGNE, paddingLeft: rail ? 0 : 4 + profondeur * RETRAIT }}
+      className={cn(
+        'group flex items-center gap-1.5 rounded-md outline-none select-none transition-colors duration-100 hover:bg-shell-hover focus-visible:ring-2 focus-visible:ring-accent-escale/60',
+        rail ? 'justify-center' : 'pr-1.5'
+      )}
     >
-      <ChevronRight className={cn('size-3.5 shrink-0 text-shell-muted transition-transform duration-150', !dossier.replie && 'rotate-90')} />
+      {!rail && (
+        <ChevronRight className={cn('size-3.5 shrink-0 text-shell-muted transition-transform duration-150', !dossier.replie && 'rotate-90')} />
+      )}
       <Icone className="size-4 shrink-0" style={{ color: dossier.teinte || 'var(--shell-muted)' }} />
-      {enRenommage ? (
+      {rail ? null : enRenommage ? (
         <ChampNom
           valeur={dossier.nom}
           valider={(nom) => {

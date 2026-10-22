@@ -2,6 +2,7 @@ import * as React from 'react';
 import { agir, demarrer, useCommande, useEtat, useEtatPret } from './etat';
 import { teintes, useSyncedTheme } from './lib/theme';
 import { BarreLaterale } from './components/BarreLaterale';
+import { TransitionPage } from './components/TransitionPage';
 
 /**
  * Le shell : la barre latérale à gauche, la page encadrée à droite. La page
@@ -33,7 +34,9 @@ function ZonePage() {
   return (
     <main className="relative min-w-0 flex-1 p-2 pl-0">
       <div className="h-full w-full rounded-[11px] border border-shell-border bg-shell-raised p-px">
-        <div ref={ref} id="zone-page" className="h-full w-full rounded-[10px]" />
+        <div ref={ref} id="zone-page" className="relative h-full w-full rounded-[10px]">
+          <TransitionPage />
+        </div>
       </div>
     </main>
   );
@@ -45,13 +48,10 @@ function useTeinteEspace(sombre: boolean) {
   React.useEffect(() => {
     const racine = document.documentElement.style;
     const t = teinte ? teintes(teinte, sombre) : null;
-    if (t) {
-      racine.setProperty('--tint-surface', t.surface);
-      racine.setProperty('--tint-line', t.line);
-    } else {
-      racine.removeProperty('--tint-surface');
-      racine.removeProperty('--tint-line');
-    }
+    // Toujours posées (base neutre sans teinte) : ce sont des propriétés
+    // enregistrées (@property, index.css), qui passent en fondu d'un espace à l'autre.
+    racine.setProperty('--tint-surface', t ? t.surface : 'var(--shell-base)');
+    racine.setProperty('--tint-line', t ? t.line : 'var(--shell-border-base)');
   }, [teinte, sombre]);
 }
 

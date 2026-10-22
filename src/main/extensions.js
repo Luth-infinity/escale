@@ -31,6 +31,18 @@ globalThis.fetch = fetchOrigine;
 const { ElectronChromeExtensions } = require('electron-chrome-extensions');
 
 const branchees = new Map(); // session → { ece, prive }
+// La lib rappelle selectTab même quand c'est nous qui l'informons (addTab marque
+// l'onglet ajouté comme actif). Seuls les appels venus d'une extension
+// (chrome.tabs.update…) doivent remonter au pont.
+let interne = false;
+const enInterne = (f) => {
+  interne = true;
+  try {
+    return f();
+  } finally {
+    interne = false;
+  }
+};
 let pont = null;
 let premiere = null;
 const dossier = () => path.join(app.getPath('userData'), 'Extensions');
@@ -84,7 +96,7 @@ async function brancherSession(ses, { prive = false } = {}) {
     license: 'GPL-3.0',
     session: ses,
     createTab: (details) => pont.creerOnglet(details, ses),
-    selectTab: (wc) => pont.activerOnglet(wc),
+    selectTab: (wc) => !interne && pont.activerOnglet(wc),
     removeTab: (wc) => pont.fermerOnglet(wc),
     createWindow: async (details) => {
       const url = [].concat(details.url || [])[0];
@@ -110,13 +122,13 @@ async function brancherSession(ses, { prive = false } = {}) {
 const sessionDe = (wc) => [...branchees].find(([ses]) => ses === wc.session)?.[1];
 
 function ajouterOnglet(wc, fenetre) {
-  sessionDe(wc)?.ece.addTab(wc, fenetre);
+  enInterne(() => sessionDe(wc)?.ece.addTab(wc, fenetre));
 }
 function retirerOnglet(wc) {
   sessionDe(wc)?.ece.removeTab(wc);
 }
 function activerOnglet(wc) {
-  sessionDe(wc)?.ece.selectTab(wc);
+  enInterne(() => sessionDe(wc)?.ece.selectTab(wc));
 }
 function menuContextuel(wc, params) {
   return sessionDe(wc)?.ece.getContextMenuItems(wc, params) || [];

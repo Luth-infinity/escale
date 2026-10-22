@@ -95,13 +95,25 @@ module.exports = async function autotest({ fenetre, onglets, etat, agir }) {
     return 'ok';
   });
 
+  await verifier('un onglet ouvert en arrière-plan ne prend pas le premier plan', async () => {
+    const actifAvant = etat.lire().ongletActif;
+    const courantAvant = onglets.courantId();
+    onglets.ouvrir(espace.id, 'https://example.com/?fond', { actif: false });
+    await attendre(1500);
+    if (etat.lire().ongletActif !== actifAvant || onglets.courantId() !== courantAvant) throw new Error('premier plan volé');
+    return 'ok';
+  });
+
   await verifier('trois afficher() rapides : le dernier gagne', async () => {
     const ids = ['https://example.com/?1', 'https://example.com/?2', 'https://example.com/?3'].map((u) =>
       etat.appliquer('ouvrirOnglet', { espaceId: espace.id, url: u }).deltas[0].onglet.id
     );
     await Promise.all(ids.map((id) => onglets.afficher(id)));
     const vuesAffichees = fenetre.contentView.children.length;
-    if (onglets.courantId() !== ids[2]) throw new Error(`courant ${onglets.courantId()}`);
+    if (onglets.courantId() !== ids[2]) {
+      const qui = etat.lire().onglets.find((o) => o.id === onglets.courantId());
+      throw new Error(`courant ${qui?.url} (index ${ids.indexOf(onglets.courantId())}), actif modèle ${etat.lire().onglets.find((o) => o.id === etat.lire().ongletActif)?.url}`);
+    }
     if (vuesAffichees !== 1) throw new Error(`${vuesAffichees} vues dans la fenêtre`);
     return 'ok';
   });

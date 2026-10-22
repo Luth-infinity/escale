@@ -2,6 +2,27 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Enregistrées pour pouvoir passer en fondu quand on change d'espace : une
+   propriété personnalisée ordinaire ne s'anime pas. */
+@property --tint-surface {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+@property --tint-line {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+html {
+  transition: --tint-surface 250ms ease, --tint-line 250ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    transition-duration: 100ms;
+  }
+}
+
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);

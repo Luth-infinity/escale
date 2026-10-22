@@ -22,7 +22,7 @@ function creerEspace({ nom, teinte = null, icone = null }) {
 
 function creerEtat() {
   const espace = creerEspace({ nom: 'Perso' });
-  return { version: 1, espaces: [espace], dossiers: [], onglets: [], espaceActif: espace.id, ongletActif: null };
+  return { version: 1, espaces: [espace], dossiers: [], onglets: [], espaceActif: espace.id, ongletActif: null, actifs: {} };
 }
 
 const zoneDe = (o) => (o.epingle ? 'epingles' : 'jour');
@@ -129,8 +129,14 @@ function supprimerEspace(etat, id) {
 function activerEspace(etat, id) {
   if (!etat.espaces.some((e) => e.id === id)) throw new Error(`espace-inconnu: ${id}`);
   if (etat.espaceActif === id) return { etat, deltas: [] };
-  const actif = etat.onglets.find((o) => o.id === etat.ongletActif);
-  const ongletActif = actif && actif.espaceId === id ? actif.id : null;
+  // Chaque espace rouvre sur son dernier onglet consulté (retenu par activer),
+  // à défaut sur le plus récemment actif.
+  const retenu = etat.actifs?.[id];
+  const ongletActif = etat.onglets.some((o) => o.id === retenu && o.espaceId === id)
+    ? retenu
+    : etat.onglets
+        .filter((o) => o.espaceId === id)
+        .reduce((m, o) => (!m || o.derniereActivite > m.derniereActivite ? o : m), null)?.id ?? null;
   return {
     etat: { ...etat, espaceActif: id, ongletActif },
     deltas: [{ type: 'active:changed', espaceActif: id, ongletActif }]
@@ -226,9 +232,10 @@ function fermerOnglet(etat, id) {
 function activer(etat, id, maintenant = Date.now()) {
   const o = trouverOnglet(etat, id);
   const onglets = etat.onglets.map((x) => (x.id === id ? { ...x, derniereActivite: maintenant } : x));
-  if (etat.ongletActif === id && etat.espaceActif === o.espaceId) return { etat: { ...etat, onglets }, deltas: [] };
+  const actifs = { ...etat.actifs, [o.espaceId]: id };
+  if (etat.ongletActif === id && etat.espaceActif === o.espaceId) return { etat: { ...etat, onglets, actifs }, deltas: [] };
   return {
-    etat: { ...etat, onglets, ongletActif: id, espaceActif: o.espaceId },
+    etat: { ...etat, onglets, actifs, ongletActif: id, espaceActif: o.espaceId },
     deltas: [{ type: 'active:changed', espaceActif: o.espaceId, ongletActif: id }]
   };
 }
@@ -269,8 +276,9 @@ function estDescendant(etat, dossierId, ancetreId) {
 /**
  * Déplace un onglet ou un dossier. `apres` est l'élément qui sera juste
  * au-dessus, `avant` celui juste au-dessous (l'un ou l'autre suffit).
+ * `epingle` force la zone d'un onglet posé à la racine (sinon déduite du voisin).
  */
-function deplacer(etat, { id, type, dossierId = null, avant = null, apres = null }) {
+function deplacer(etat, { id, type, dossierId = null, avant = null, apres = null, epingle: force }) {
   if (type === 'dossier') {
     const d = trouverDossier(etat, id);
     if (dossierId && estDescendant(etat, dossierId, id)) throw new Error('cycle');
@@ -283,6 +291,7 @@ function deplacer(etat, { id, type, dossierId = null, avant = null, apres = null
   const o = trouverOnglet(etat, id);
   let epingle = o.epingle;
   if (dossierId) epingle = true;
+  else if (typeof force === 'boolean') epingle = force;
   else {
     const voisin = etat.onglets.find((x) => x.id === (apres || avant)) || etat.dossiers.find((x) => x.id === (apres || avant));
     if (voisin) epingle = 'parentId' in voisin ? true : voisin.epingle;

@@ -12,6 +12,7 @@ type Store = { etat: Etat | null; nav: Nav | null; vivants: Record<string, Vivan
 let store: Store = { etat: null, nav: null, vivants: {} };
 const ecouteurs = new Set<() => void>();
 const commandes = new Set<(nom: string, id?: string) => void>();
+const transitions = new Set<(de: string, vers: string | null) => void>();
 
 function publier(suivant: Store) {
   store = suivant;
@@ -61,6 +62,10 @@ export async function demarrer() {
       return publier({ ...store, nav });
     }
     if (d.type === 'tab:etat') return publier({ ...store, vivants: { ...store.vivants, [d.id]: { vivant: d.vivant, son: d.son } } });
+    if (d.type === 'page:transition') {
+      for (const f of transitions) f(d.de, d.vers);
+      return;
+    }
     if (d.type === 'ui:commande') {
       for (const f of commandes) f(d.nom, d.id);
       return;
@@ -97,6 +102,17 @@ export function useCommande(f: (nom: string, id?: string) => void) {
     const ecoute = (nom: string, id?: string) => ref.current(nom, id);
     commandes.add(ecoute);
     return () => void commandes.delete(ecoute);
+  }, []);
+}
+
+/** Le changement d'onglet : l'image sortante et la dernière image de l'entrante. */
+export function useTransitionPage(f: (de: string, vers: string | null) => void) {
+  const ref = React.useRef(f);
+  ref.current = f;
+  React.useEffect(() => {
+    const ecoute = (de: string, vers: string | null) => ref.current(de, vers);
+    transitions.add(ecoute);
+    return () => void transitions.delete(ecoute);
   }, []);
 }
 

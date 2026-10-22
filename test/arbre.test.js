@@ -160,3 +160,42 @@ test('l’état n’est jamais muté', () => {
   A.ajouterDossier(etat, { espaceId, parentId: null, nom: 'D' });
   assert.strictEqual(JSON.stringify(etat), gele);
 });
+
+test('deplacer avec epingle forcé : un épinglé déposé dans un jour vide est désépinglé', () => {
+  let { etat, espaceId } = base();
+  let o = ouvrir(etat, espaceId, 'https://a.fr');
+  let e = A.epingler(o.etat, o.id, true).etat;
+  e = A.deplacer(e, { id: o.id, type: 'onglet', dossierId: null, epingle: false }).etat;
+  assert.strictEqual(e.onglets[0].epingle, false);
+  // Un onglet dans un dossier reste épinglé, même si on demande le contraire.
+  let r = A.ajouterDossier(e, { espaceId, nom: 'D' });
+  e = A.deplacer(r.etat, { id: o.id, type: 'onglet', dossierId: r.deltas[0].dossier.id, epingle: false }).etat;
+  assert.strictEqual(e.onglets[0].epingle, true);
+});
+
+test('revenir sur un espace réactive son dernier onglet consulté', () => {
+  let { etat, espaceId } = base();
+  let a = ouvrir(etat, espaceId, 'https://a.fr');
+  let b = ouvrir(a.etat, espaceId, 'https://b.fr');
+  let e = A.activer(b.etat, a.id, 1000).etat;
+  e = A.activer(e, b.id, 2000).etat;
+  let r = A.ajouterEspace(e, { nom: 'Boulot' });
+  const boulot = r.deltas[0].espace.id;
+  e = A.activerEspace(r.etat, boulot).etat;
+  assert.strictEqual(e.ongletActif, null);
+  r = A.activerEspace(e, espaceId);
+  assert.strictEqual(r.etat.ongletActif, b.id);
+  assert.deepStrictEqual(r.deltas, [{ type: 'active:changed', espaceActif: espaceId, ongletActif: b.id }]);
+});
+
+test('un onglet ouvert en arrière-plan après coup ne devient pas l’onglet de retour', () => {
+  let { etat, espaceId } = base();
+  let a = ouvrir(etat, espaceId, 'https://a.fr');
+  let e = A.activer(a.etat, a.id, 1000).etat;
+  // Ouvert plus tard, jamais consulté.
+  e = A.ouvrirOnglet(e, { espaceId, url: 'https://fond.fr' }).etat;
+  const r = A.ajouterEspace(e, { nom: 'Boulot' });
+  e = A.activerEspace(r.etat, r.deltas[0].espace.id).etat;
+  e = A.activerEspace(e, espaceId).etat;
+  assert.strictEqual(e.ongletActif, a.id);
+});

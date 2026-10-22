@@ -1,16 +1,25 @@
 import * as React from 'react';
+import { motion } from 'motion/react';
 import { Plus } from 'lucide-react';
 import { agir, commandeLocale, useCommande, useEtat } from '@/etat';
 import { cn } from '@/lib/utils';
 import { ChampNom } from './LigneDossier';
+import { useMouvement } from '@/lib/ressorts';
 
 function Pastille({ nom, teinte, active }: { nom: string; teinte: string | null; active: boolean }) {
+  const transition = useMouvement();
   return (
-    <span
-      className={cn('grid size-5 place-items-center rounded-full text-[10px] font-semibold', active ? 'text-white' : 'text-shell-muted')}
-      style={{ background: active ? teinte || 'var(--accent-escale)' : 'var(--shell-active)' }}
-    >
-      {nom.charAt(0).toUpperCase()}
+    <span className="relative grid size-5 place-items-center">
+      {active && (
+        // L'anneau de l'espace actif glisse d'une pastille à l'autre.
+        <motion.span layoutId="anneau-espace" transition={transition} className="absolute -inset-[3px] rounded-full ring-[1.5px] ring-shell-foreground/25" />
+      )}
+      <span
+        className={cn('grid size-5 place-items-center rounded-full text-[10px] font-semibold transition-colors duration-200', active ? 'text-white' : 'text-shell-muted')}
+        style={{ background: active ? teinte || 'var(--accent-escale)' : 'var(--shell-active)' }}
+      >
+        {nom.charAt(0).toUpperCase()}
+      </span>
     </span>
   );
 }
@@ -47,11 +56,11 @@ export function EnTeteEspace() {
 }
 
 /** Les espaces, en bas de la barre : un clic bascule, le « + » en crée un. */
-export function SelecteurEspaces() {
+export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
   const espaces = useEtat((e) => e.espaces);
   const actif = useEtat((e) => e.espaceActif);
   return (
-    <div className="flex h-11 shrink-0 items-center gap-1 border-t border-shell-border px-2">
+    <div className={cn('flex shrink-0 items-center gap-1 border-t border-shell-border px-2', rail ? 'flex-col py-2' : 'h-11')}>
       {espaces.map((e, i) => (
         <button
           key={e.id}
@@ -66,13 +75,14 @@ export function SelecteurEspaces() {
           <Pastille nom={e.nom} teinte={e.teinte} active={e.id === actif} />
         </button>
       ))}
+      {!rail && <span className="flex-1" />}
       <button
         title="Nouvel espace"
         onClick={async () => {
           const id = (await agir('espace.creer', { nom: `Espace ${espaces.length + 1}` })) as string;
           commandeLocale('renommer-espace', id);
         }}
-        className="ml-auto grid size-7 place-items-center rounded-md text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"
+        className="grid size-7 place-items-center rounded-md text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"
       >
         <Plus className="size-4" />
       </button>

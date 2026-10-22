@@ -67,6 +67,15 @@ function creerFenetre() {
     if (cmd === 'browser-backward') agir('nav.precedent', {});
     if (cmd === 'browser-forward') agir('nav.suivant', {});
   });
+  // Barre repliée en rail de 56 px : les feux de macOS (≈ 70 px) déborderaient
+  // sur la page. On les masque, comme Arc.
+  const feux = () => {
+    if (process.platform === 'darwin') win.setWindowButtonVisibility(!etat.reglages().barreRepliee);
+  };
+  feux();
+  etat.ecouter((d) => {
+    if (d.type === 'settings:changed' && 'barreRepliee' in d.patch) feux();
+  });
   win.once('ready-to-show', () => win.show());
   win.loadURL(URL_SHELL);
   const actif = etat.lire().ongletActif;
@@ -113,6 +122,10 @@ app.whenReady().then(() => {
   const apercu = process.argv.find((a) => a.startsWith('--apercu='));
   if (!app.isPackaged && apercu) {
     require(path.join(__dirname, '../../scripts/apercu.js'))({ fenetre: win, onglets, etat, agir, sortie: apercu.slice(9) });
+  }
+  const verif = process.argv.find((a) => a.startsWith('--verif-mouvement='));
+  if (!app.isPackaged && verif) {
+    require(path.join(__dirname, '../../scripts/verif-mouvement.js'))({ fenetre: win, onglets, etat, agir, sortie: verif.slice(18) });
   }
   if (!app.isPackaged && process.argv.includes('--perf-liste')) {
     win.webContents.once('did-finish-load', () => require(path.join(__dirname, '../../scripts/perf-liste.js'))({ fenetre: win, etat }));

@@ -19,6 +19,9 @@ const { aEndormir, regrouperMeta } = require('./onglets-purs');
  * et la vue s'affiche.
  */
 const RAYON = 10;
+// Durée du fondu croisé joué par le shell au changement d'onglet ; la vue
+// entrante n'est révélée qu'ensuite (une vue native se peint par-dessus le HTML).
+const TRANSITION_MS = 170;
 const CALME_HISTORIQUE_MS = 1500;
 const OUVERTURES_MAX = 3; // par ouvreur, sur la fenêtre ci-dessous
 const OUVERTURES_FENETRE_MS = 2000;
@@ -35,6 +38,7 @@ let courant = null;
 let demande = 0;
 let zoneRect = { x: 0, y: 0, width: 0, height: 0 };
 let overlay = false;
+let minuteurRevele = 0;
 
 const meta = regrouperMeta(250, (id, patch) => {
   if (etat.lire().onglets.some((o) => o.id === id)) etat.appliquer('majMeta', id, patch);
@@ -118,6 +122,8 @@ async function assurerVue(id) {
   vues.set(id, vue);
   cabler(vue, id);
   extensions.ajouterOnglet(vue.webContents, fenetre);
+  // L'ajout l'a marqué actif côté lib : on rétablit l'onglet réellement affiché.
+  if (courant && courant !== id && vues.has(courant)) extensions.activerOnglet(vues.get(courant).webContents);
   charger(vue.webContents, onglet.url);
   emettreEtat(id);
   return vue;
@@ -244,12 +250,34 @@ async function afficher(id) {
   const vue = await assurerVue(id);
   if (n !== demande || !vue || !fenetre || fenetre.isDestroyed()) return;
   const precedente = courant ? vues.get(courant) : null;
+  // La page sortante est photographiée (≈ 7 ms) : le shell la fait fondre vers
+  // la dernière image connue de la page entrante, puis on révèle la vraie.
+  let transition = false;
+  if (precedente && precedente !== vue && !overlay && precedente.getVisible()) {
+    const de = await capturer(courant).catch(() => null);
+    if (n !== demande) return;
+    if (de) {
+      ipc.emettre({ type: 'page:transition', de, vers: captures.get(id) || null });
+      transition = true;
+    }
+  }
+  clearTimeout(minuteurRevele);
   if (precedente && precedente !== vue) fenetre.contentView.removeChildView(precedente);
   courant = id;
   fenetre.contentView.addChildView(vue);
   vue.setBounds(zoneRect);
-  vue.setVisible(!overlay);
-  if (!overlay) vue.webContents.focus();
+  const reveler = () => {
+    if (n !== demande || overlay) return;
+    vue.setVisible(true);
+    vue.webContents.focus();
+  };
+  if (transition) {
+    vue.setVisible(false);
+    minuteurRevele = setTimeout(reveler, TRANSITION_MS);
+  } else {
+    vue.setVisible(!overlay);
+    if (!overlay) vue.webContents.focus();
+  }
   extensions.activerOnglet(vue.webContents);
   emettreNav(id);
 }

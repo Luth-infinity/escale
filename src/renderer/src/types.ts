@@ -13,6 +13,7 @@ export type Reglages = {
 };
 export type Etat = {
   version: 1; espaces: Espace[]; dossiers: Dossier[]; onglets: Onglet[]; espaceActif: string; ongletActif: string | null;
+  actifs?: Record<string, string>; // espace → dernier onglet consulté
   reglages: Reglages;
 };
 export type Nav = { id: string; url: string; peutReculer: boolean; peutAvancer: boolean; chargement: boolean };
@@ -31,7 +32,8 @@ export type Delta =
   | { type: 'tab:etat'; id: string; vivant: boolean; son: boolean }
   | ({ type: 'nav:state' } & Nav)
   | { type: 'settings:changed'; patch: Partial<Reglages> }
-  | { type: 'ui:commande'; nom: string; id?: string };
+  | { type: 'ui:commande'; nom: string; id?: string }
+  | { type: 'page:transition'; de: string; vers: string | null };
 
 declare module 'react' {
   namespace JSX {

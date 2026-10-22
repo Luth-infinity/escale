@@ -68,7 +68,8 @@ const ACTIONS = {
       type: { type: 'enum', valeurs: ['onglet', 'dossier'] },
       dossierId: opt(ID_OU_NUL),
       avant: opt(ID_OU_NUL),
-      apres: opt(ID_OU_NUL)
+      apres: opt(ID_OU_NUL),
+      epingle: opt(OUI)
     }),
     fn: (ctx, p) => ctx.etat.appliquer('deplacer', p)
   },

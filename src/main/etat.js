@@ -51,7 +51,9 @@ function regler(patch) {
   if (!change.length) return;
   etat = { ...etat, reglages: { ...etat.reglages, ...Object.fromEntries(change) } };
   store.planifierEcriture(dossier, etat);
-  ipc.emettre({ type: 'settings:changed', patch: Object.fromEntries(change) });
+  const delta = { type: 'settings:changed', patch: Object.fromEntries(change) };
+  ipc.emettre(delta);
+  for (const f of ecouteurs) f(delta, etat);
 }
 
 function ecouter(f) {
