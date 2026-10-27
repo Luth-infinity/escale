@@ -32,6 +32,14 @@ Commits signés `Luth <57181738+Luth-infinity@users.noreply.github.com>`, **aucu
 - **Barre masquée** : la bande de 8 px du bord gauche la réveille ; le principal suit le pointeur (`barre.survol`), le shell ne le voit pas partir sur la page.
 - **Popups d'extension sous Windows mis à l'échelle** : `ajusterPopup` (extensions.js) reprend taille et placement ; le reverrouillage « non redimensionnable » et `updatePosition` de la lib rognent la fenêtre.
 
+## Publier une version
+
+1. `npm version X.Y.Z --no-git-tag-version`, commit, tag `vX.Y.Z`, push de main et du tag.
+2. `npm run dist:win -- --publish never` puis `npx electron-builder --mac --publish never` (sur un Mac : les deux se construisent ici).
+3. `gh release create vX.Y.Z` avec `Escale-Setup-X.Y.Z-x64.exe`, son `.blockmap`, `latest.yml` (mise à jour auto Windows) et les deux `.dmg` ; l'action « Binaires macOS » les reconstruit ensuite.
+4. **Chaque release porte un GIF léger de sa nouveauté principale** (comme Hublink), montré en haut de « Nouveautés » : motion design filaire sans texte dans `../escale-motion` (Remotion, `npm run gif <composition>`, 640 × 360, `scripts/gif.sh`), joint sous le nom `nouveaute.gif` et appelé en première ligne du corps : `![](https://github.com/Luth-infinity/escale/releases/download/vX.Y.Z/nouveaute.gif)`. `updates.js` l'écarte des puces et le passe au shell en data URL. Pas de GIF pour un pur correctif.
+5. Site : `cd site && vercel deploy --prod` (lié à zawatsukas-projects/escale-luth) ; il lit lui-même la dernière release, seul son contenu est à tenir à jour.
+
 ## Outils de dev (hors app empaquetée)
 
 `--apercu=<chemin>` (captures du shell et de la page), `--verif-mouvement=<chemin>` (pilote l'interface et relève l'état), `--perf-liste` (300 onglets), `--mesures`, `--test-securite`.

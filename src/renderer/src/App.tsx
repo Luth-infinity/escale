@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
  */
 type Commande = { nouvelOnglet: boolean; depuis?: number } | null;
 
-type Modale = { type: 'reglages' } | { type: 'historique' } | { type: 'nouveautes'; version: string; points: string[] } | null;
+type Modale = { type: 'reglages' } | { type: 'historique' } | { type: 'nouveautes'; version: string; points: string[]; image: string | null } | null;
 
 function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale, fermerModale }: {
   commande: Commande; fermerCommande: () => void; recherche: boolean; fermerRecherche: () => void; modale: Modale; fermerModale: () => void;
@@ -65,7 +65,7 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale
           {question && <Dialogue key={question.id} question={question} />}
           {!question && commande && <BarreCommande nouvelOnglet={commande.nouvelOnglet} depuis={commande.depuis} fermer={fermerCommande} />}
           {!question && !commande && modale?.type === 'reglages' && <Reglages fermer={fermerModale} />}
-          {!question && !commande && modale?.type === 'nouveautes' && <Nouveautes version={modale.version} points={modale.points} fermer={fermerModale} />}
+          {!question && !commande && modale?.type === 'nouveautes' && <Nouveautes version={modale.version} points={modale.points} image={modale.image} fermer={fermerModale} />}
           {!question && !commande && modale?.type === 'historique' && <Historique fermer={fermerModale} />}
         </div>
       </div>
@@ -111,8 +111,8 @@ function Shell() {
     (async () => {
       const { version } = (await agir('app.infos')) as { version: string };
       if (lireReglages().derniereVersionVue === version) return;
-      const notes = (await agir('maj.notes')) as { points?: string[] } | null;
-      if (notes?.points?.length) setModale({ type: 'nouveautes', version, points: notes.points });
+      const notes = (await agir('maj.notes')) as { points?: string[]; image?: string | null } | null;
+      if (notes?.points?.length) setModale({ type: 'nouveautes', version, points: notes.points, image: notes.image ?? null });
       else agir('reglages.modifier', { derniereVersionVue: version });
     })();
   }, []);

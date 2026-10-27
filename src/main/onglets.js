@@ -213,6 +213,17 @@ const libellesBulle = () => ({
 
 function cabler(vue, id) {
   const wc = vue.webContents;
+  // Le script de contenu d'un gestionnaire de mots de passe repart « inactif »
+  // à chaque document : on lui redit que l'onglet affiché l'est, une fois sa
+  // propre initialisation passée (extensions.surligner).
+  let minuteursSurligner = [];
+  const resurligner = () => {
+    if (courant !== id) return;
+    minuteursSurligner.forEach(clearTimeout);
+    minuteursSurligner = [300, 1500, 4000].map((ms) => setTimeout(() => courant === id && !wc.isDestroyed() && extensions.surligner(wc), ms));
+  };
+  wc.on('did-finish-load', resurligner);
+  wc.on('did-frame-finish-load', resurligner);
   securite.brancherPage(wc, { fenetre: () => fenetre, exceptionsHttp });
   importFirefox.surveillerRefusGoogle(wc);
   ua.suivre(wc);

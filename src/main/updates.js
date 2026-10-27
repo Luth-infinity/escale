@@ -90,6 +90,42 @@ function watch(onFound) {
 }
 
 /**
+ * Une ligne du corps de release qui n'est qu'une image : `![](url)` ou la
+ * balise `<img>` que GitHub écrit quand on la glisse. Seul le https passe.
+ */
+function imageDe(ligne) {
+  return (ligne.match(/^!\[[^\]]*\]\((https:\/\/[^\s)]+)\)$/) || ligne.match(/^<img\b[^>]*\bsrc="(https:\/\/[^"]+)"[^>]*>$/i))?.[1] ?? null;
+}
+
+const IMAGE_MAX = 5 * 1024 * 1024;
+
+/**
+ * L'image passe au shell en data URL : son CSP n'admet que `data:` et ses
+ * propres fichiers, inutile de l'ouvrir à GitHub pour une image par version.
+ */
+async function enDataUrl(url) {
+  try {
+    const res = await net.fetch(url);
+    if (!res.ok) return null;
+    const octets = Buffer.from(await res.arrayBuffer());
+    // Les fichiers de release arrivent en application/octet-stream : le
+    // format se lit dans les premiers octets.
+    const type = typeImage(octets);
+    return type && octets.length <= IMAGE_MAX ? `data:${type};base64,${octets.toString('base64')}` : null;
+  } catch {
+    return null;
+  }
+}
+
+function typeImage(o) {
+  if (o.subarray(0, 4).toString('latin1') === 'GIF8') return 'image/gif';
+  if (o[0] === 0x89 && o.subarray(1, 4).toString('latin1') === 'PNG') return 'image/png';
+  if (o[0] === 0xff && o[1] === 0xd8) return 'image/jpeg';
+  if (o.subarray(0, 4).toString('latin1') === 'RIFF' && o.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+  return null;
+}
+
+/**
  * Notes de la version installée, pour la fenêtre « Nouveautés ».
  *
  * Même source que le changelog du site : le corps de la release GitHub. On
@@ -112,9 +148,12 @@ async function notesFor(version, lang = 'fr') {
     const points = partie
       .split('\n')
       .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith('#') && !l.startsWith('**') && !l.startsWith('>'))
+      .filter((l) => l && !l.startsWith('#') && !l.startsWith('**') && !l.startsWith('>') && !imageDe(l))
       .map((l) => l.replace(/^[-*]\s*/, ''));
-    return { version, date: release.published_at, page: release.html_url, points };
+    // L'image de la nouveauté (repris de Hublink) : cherchée dans tout le corps,
+    // posée une fois avant les deux langues.
+    const url = body.split('\n').map((l) => imageDe(l.trim())).find(Boolean);
+    return { version, date: release.published_at, page: release.html_url, points, image: url ? await enDataUrl(url) : null };
   } catch {
     return null;
   }
@@ -155,4 +194,4 @@ function install() {
   autoUpdater.quitAndInstall(true, true);
 }
 
-module.exports = { check, watch, isNewer, notesFor, canInstall, download, install };
+module.exports = { check, watch, isNewer, notesFor, canInstall, download, install, imageDe, typeImage };

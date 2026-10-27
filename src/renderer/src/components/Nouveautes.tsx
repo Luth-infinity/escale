@@ -6,7 +6,7 @@ import { useModalePage } from '@/lib/modale';
 import { useMouvement } from '@/lib/ressorts';
 
 /** « Nouveautés » : montrée une fois au premier lancement d'une nouvelle version. */
-export function Nouveautes({ version, points, fermer }: { version: string; points: string[]; fermer: () => void }) {
+export function Nouveautes({ version, points, image, fermer }: { version: string; points: string[]; image: string | null; fermer: () => void }) {
   const transition = useMouvement();
   const fond = useModalePage();
   const finir = () => {
@@ -23,8 +23,10 @@ export function Nouveautes({ version, points, fermer }: { version: string; point
         initial={{ opacity: 0, scale: 0.98, y: -4 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={transition}
-        className="absolute top-[14%] left-1/2 w-[min(480px,calc(100%-48px))] -translate-x-1/2 rounded-xl border border-shell-border bg-shell-raised p-5 shadow-[0_24px_64px_-24px_rgb(0_0_0/0.45)]"
+        className="absolute top-1/2 left-1/2 max-h-[90%] w-[min(520px,calc(100%-48px))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-shell-border bg-shell-raised p-5 shadow-[0_24px_64px_-24px_rgb(0_0_0/0.45)]"
       >
+        {/* L'image de la nouveauté, quand la release en porte une (comme Hublink). */}
+        {image && <img src={image} alt="" className="mb-4 aspect-video w-full rounded-lg border border-shell-border bg-shell-base object-cover" />}
         <h2 className="text-[17px] font-semibold tracking-tight">{t('Nouveautés de la {v}', { v: version })}</h2>
         <ul className="mt-3 space-y-1.5 text-[13.5px]">
           {points.map((p) => (

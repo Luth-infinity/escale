@@ -221,6 +221,24 @@ function retirerOnglet(wc) {
 }
 function activerOnglet(wc) {
   enInterne(() => sessionDe(wc)?.ece.selectTab(wc));
+  surligner(wc);
+}
+
+/**
+ * Dit aux extensions que l'onglet est celui qu'on regarde (tabs.onHighlighted).
+ *
+ * Electron remplit lui-même `sender.tab` des messages d'un script de contenu,
+ * sans jamais le dire actif ni surligné. Dashlane en déduit que la page n'est
+ * pas au premier plan et n'analyse pas ses champs : pas de remplissage. Il
+ * reprend sur `tabs.onHighlighted`, que la lib n'émet pas. On l'émet donc à
+ * l'activation et après chaque chargement de page ou de cadre — le script de
+ * contenu d'un nouveau document repart chaque fois de « inactif ».
+ */
+function surligner(wc) {
+  const ece = sessionDe(wc)?.ece;
+  if (!ece || wc.isDestroyed()) return;
+  const fenetre = ece.ctx.store.tabToWindow.get(wc);
+  ece.ctx.router.broadcastEvent('tabs.onHighlighted', { tabIds: [wc.id], windowId: fenetre && !fenetre.isDestroyed() ? fenetre.id : -1 });
 }
 function menuContextuel(wc, params) {
   return sessionDe(wc)?.ece.getContextMenuItems(wc, params) || [];
@@ -248,6 +266,6 @@ function brancherShell(ses) {
 }
 
 module.exports = {
-  definirPont, brancherSession, brancherShell, diffuserRequete, ajouterOnglet, retirerOnglet, activerOnglet, menuContextuel,
+  definirPont, brancherSession, brancherShell, diffuserRequete, ajouterOnglet, retirerOnglet, activerOnglet, surligner, menuContextuel,
   retirer, lister
 };

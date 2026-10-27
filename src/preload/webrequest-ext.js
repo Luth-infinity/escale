@@ -1,8 +1,11 @@
 /*
- * Preload des service workers d'extension : un chrome.webRequest.onBeforeRequest
- * qui fonctionne, alimenté par le principal (src/main/webrequest-ext.js).
- * Enregistré AVANT celui d'electron-chrome-extensions, qui fige `chrome` après
- * avoir posé ses propres API.
+ * Preload des service workers d'extension : des événements que la lib
+ * electron-chrome-extensions n'a pas, alimentés par le principal :
+ * - chrome.webRequest.onBeforeRequest (src/main/webrequest-ext.js) ;
+ * - chrome.tabs.onHighlighted (extensions.surligner) : sans lui, Dashlane
+ *   croit l'onglet inactif et n'analyse pas les champs.
+ * Enregistré AVANT celui de la lib, qui recopie l'objet existant
+ * (`{ ...base }`) avant de figer `chrome`.
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -10,9 +13,9 @@ const EVENEMENT = 'webRequest.onBeforeRequest';
 
 if (process.type === 'service-worker') {
   contextBridge.exposeInMainWorld('escaleWebRequest', {
-    ecouter(extensionId, fn) {
-      ipcRenderer.on(`crx-${EVENEMENT}`, (_e, details) => fn(details));
-      ipcRenderer.send('crx-add-listener', extensionId, EVENEMENT);
+    ecouter(extensionId, fn, evenement = EVENEMENT) {
+      ipcRenderer.on(`crx-${evenement}`, (_e, ...args) => fn(...args));
+      ipcRenderer.send('crx-add-listener', extensionId, evenement);
     }
   });
   contextBridge.executeInMainWorld({
@@ -20,7 +23,30 @@ if (process.type === 'service-worker') {
       const pont = globalThis.escaleWebRequest;
       delete globalThis.escaleWebRequest;
       const chrome = globalThis.chrome;
-      if (!chrome?.runtime?.id || !chrome.webRequest) return;
+      if (!chrome?.runtime?.id) return;
+
+      // Un événement de Chrome minimal, relié au routeur de la lib au premier écouteur.
+      const evenement = (nom) => {
+        const fns = new Set();
+        let branche = false;
+        return {
+          addListener(fn) {
+            if (!branche && (branche = true)) pont.ecouter(chrome.runtime.id, (...a) => fns.forEach((f) => { try { f(...a); } catch (e) { console.error(e); } }), nom);
+            fns.add(fn);
+          },
+          removeListener: (fn) => fns.delete(fn),
+          hasListener: (fn) => fns.has(fn),
+          hasListeners: () => fns.size > 0
+        };
+      };
+      if (chrome.tabs) {
+        Object.defineProperty(chrome, 'tabs', {
+          value: { ...chrome.tabs, onHighlighted: evenement('tabs.onHighlighted') },
+          enumerable: true,
+          configurable: true
+        });
+      }
+      if (!chrome.webRequest) return;
 
       // Motifs d'URL de Chrome (« *://*.exemple.fr/* », « <all_urls> »), en
       // version simple : `*` vaut n'importe quelle suite de caractères.
