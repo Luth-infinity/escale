@@ -173,7 +173,7 @@ export const fr: Contenu = {
       {
         titre: 'Extensions Chrome',
         texte:
-          'Installées depuis le Chrome Web Store, signature du paquet vérifiée, permissions expliquées en clair avant d’installer.'
+          'Installées depuis le Chrome Web Store, signature du paquet vérifiée, permissions expliquées en clair avant d’installer. Les gestionnaires de mots de passe remplissent les champs des pages.'
       },
       {
         titre: 'Barre de commande',
@@ -317,7 +317,7 @@ export const en: Contenu = {
       },
       {
         titre: 'Chrome extensions',
-        texte: 'Installed from the Chrome Web Store, package signature checked, permissions spelled out before you install.'
+        texte: 'Installed from the Chrome Web Store, package signature checked, permissions spelled out before you install. Password managers fill in the fields on the page.'
       },
       {
         titre: 'Command bar',
