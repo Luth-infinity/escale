@@ -5,7 +5,7 @@ const { valider } = require('../src/main/valider');
 
 const ATTENDUES = [
   'onglet.ouvrir', 'onglet.fermer', 'onglet.restaurer', 'onglet.activer', 'onglet.deplacer', 'onglet.epingler',
-  'onglet.dupliquer', 'onglet.muet', 'dossier.creer', 'dossier.renommer', 'dossier.replier', 'dossier.supprimer',
+  'onglet.dupliquer', 'onglet.muet', 'video.sortir', 'dossier.creer', 'dossier.renommer', 'dossier.replier', 'dossier.supprimer',
   'dossier.teinte', 'espace.creer', 'espace.activer', 'espace.modifier', 'espace.supprimer', 'nav.precedent',
   'nav.suivant', 'nav.recharger', 'nav.aller', 'page.chercher', 'page.zoom', 'layout.zone', 'layout.overlay', 'barre.replier',
   'commande.resoudre', 'commande.ouvrir', 'page.capture'

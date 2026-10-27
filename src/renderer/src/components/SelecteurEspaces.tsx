@@ -39,6 +39,20 @@ export function EnTeteEspace() {
     if (nom === 'renommer-espace' && id === espace?.id) setRenommage(true);
   });
   if (!espace) return null;
+  // En privé, pas de nom d'espace : un bandeau qui dit où l'on est, et comment en sortir.
+  if (espace.prive)
+    return (
+      <div className="mx-2 mt-2 mb-1 flex h-8 items-center gap-2 rounded-lg bg-shell-active px-2 text-[12.5px]">
+        <VenetianMask className="size-4 shrink-0" />
+        <span className="min-w-0 flex-1 truncate font-medium">{t('Navigation privée')}</span>
+        <button
+          onClick={() => agir('espace.prive', { nom: t('Navigation privée') })}
+          className="h-6 shrink-0 rounded-md px-2 text-[12px] font-medium text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"
+        >
+          {t('Sortir')}
+        </button>
+      </div>
+    );
   return (
     <div
       onContextMenu={(e) => {
@@ -118,8 +132,11 @@ function BoutonExtensions() {
 
 /** Les espaces, en bas de la barre : un clic bascule, le « + » en crée un. */
 export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
-  const espaces = useEtat((e) => e.espaces);
+  // L'espace de la navigation privée n'est pas un espace comme les autres : il n'a pas de pastille.
+  const tous = useEtat((e) => e.espaces);
+  const espaces = React.useMemo(() => tous.filter((e) => !e.prive), [tous]);
   const actif = useEtat((e) => e.espaceActif);
+  const enPrive = tous.some((e) => e.prive && e.id === actif);
   return (
     <div className={cn('relative flex shrink-0 items-center gap-1 border-t border-shell-border px-2', rail ? 'flex-col py-2' : 'h-11')}>
       {espaces.map((e, i) => (
@@ -138,9 +155,13 @@ export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
       ))}
       {!rail && <span className="flex-1" />}
       <button
-        title={t('Navigation privée (Ctrl+Maj+N)')}
+        title={enPrive ? t('Quitter la navigation privée (Ctrl+Maj+N)') : t('Navigation privée (Ctrl+Maj+N)')}
+        aria-pressed={enPrive}
         onClick={() => agir('espace.prive', { nom: t('Navigation privée') })}
-        className="grid size-7 place-items-center rounded-md text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"
+        className={cn(
+          'grid size-7 place-items-center rounded-md transition-colors hover:bg-shell-hover hover:text-shell-foreground',
+          enPrive ? 'bg-shell-active text-shell-foreground' : 'text-shell-muted'
+        )}
       >
         <VenetianMask className="size-4" />
       </button>

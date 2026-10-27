@@ -63,7 +63,8 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
   const nav = useNav();
   const rail = useEtat((e) => e.reglages.barreRepliee);
   const largeur = useEtat((e) => e.reglages.largeurBarre) || 240;
-  const espaces = useEtat((e) => e.espaces);
+  const tous = useEtat((e) => e.espaces);
+  const espaces = React.useMemo(() => tous.filter((e) => !e.prive), [tous]);
   const espaceActif = useEtat((e) => e.espaceActif);
   const onglets = useEtat((e) => e.onglets);
   const dossiers = useEtat((e) => e.dossiers);

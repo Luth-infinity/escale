@@ -305,5 +305,9 @@
   "Sortir la vidéo": "Pop out video",
   "Revenir dans Escale": "Back to Escale",
   "Lecture / pause": "Play / pause",
-  "Volume": "Volume"
+  "Volume": "Volume",
+  "Ni historique, ni cookies gardés, ni extensions ; tout s’efface quand vous la quittez. Raccourci : Ctrl Maj N.": "No history, no cookies kept, no extensions; everything is erased when you leave. Shortcut: Ctrl Shift N.",
+  "Quitter la navigation privée (Ctrl+Maj+N)": "Leave private browsing (Ctrl+Shift+N)",
+  "Sortir": "Leave",
+  "Passer en navigation privée": "Go private"
 }

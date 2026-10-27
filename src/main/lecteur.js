@@ -21,13 +21,49 @@ function scriptLecteur(L) {
   let video = null;
   let sortie = false;
 
+  // Toutes les vidéos, y compris dans les Shadow DOM ouverts (lecteurs en
+  // composants web).
+  const videos = (racine = document, acc = []) => {
+    for (const n of racine.querySelectorAll('*')) {
+      if (n.tagName === 'VIDEO') acc.push(n);
+      if (n.shadowRoot) videos(n.shadowRoot, acc);
+    }
+    return acc;
+  };
   // La vidéo qu'on sort : le lecteur principal sur YouTube, sinon la plus
   // grande qui a de quoi jouer (celle en lecture d'abord).
   const choisir = () => {
     if (youtube) return document.querySelector('#movie_player video.html5-main-video') || document.querySelector('#movie_player video');
     const aire = (v) => v.getBoundingClientRect().width * v.getBoundingClientRect().height;
-    const candidates = [...document.querySelectorAll('video')].filter((v) => v.readyState > 0);
+    const candidates = videos().filter((v) => v.readyState > 0);
     return candidates.sort((a, b) => Number(!b.paused) - Number(!a.paused) || aire(b) - aire(a))[0] || null;
+  };
+
+  // Les styles vont EN LIGNE, avec !important : une feuille du document
+  // n'atteint pas un Shadow DOM, et un parent transformé (transform, filter,
+  // contain…) enfermerait la vidéo « fixed » dans son propre cadre. Les
+  // lecteurs réécrivent parfois l'attribut style : on repose à chaque tic.
+  const PLEIN = { visibility: 'visible', position: 'fixed', inset: '0', left: '0', top: '0', width: '100vw', height: '100vh',
+    'max-width': 'none', 'max-height': 'none', 'object-fit': 'contain', transform: 'none', 'z-index': '2147482000', background: '#000', margin: '0' };
+  const NEUTRE = { transform: 'none', filter: 'none', contain: 'none', perspective: 'none', 'will-change': 'auto', 'backdrop-filter': 'none', 'clip-path': 'none' };
+  let poses = []; // [élément, style d'origine]
+  const parents = (n) => {
+    const acc = [];
+    for (let p = n.parentNode; p; p = p.parentNode || p.host) if (p.nodeType === 1) acc.push(p);
+    return acc;
+  };
+  const figer = () => {
+    if (!video) return;
+    const appliquer = (n, props) => {
+      if (!poses.some(([x]) => x === n)) poses.push([n, n.getAttribute('style')]);
+      for (const [k, v] of Object.entries(props)) if (n.style.getPropertyValue(k) !== v || n.style.getPropertyPriority(k) !== 'important') n.style.setProperty(k, v, 'important');
+    };
+    appliquer(video, PLEIN);
+    for (const p of parents(video)) appliquer(p, NEUTRE);
+  };
+  const liberer = () => {
+    for (const [n, origine] of poses) origine === null ? n.removeAttribute('style') : n.setAttribute('style', origine);
+    poses = [];
   };
 
   // Pas d'innerHTML (Trusted Types de YouTube) : tout se construit à la main.
@@ -56,11 +92,6 @@ function scriptLecteur(L) {
   styleSortie.textContent = `
     html.escale-sortie, html.escale-sortie body { background: #000 !important; overflow: hidden !important; }
     html.escale-sortie body * { visibility: hidden !important; }
-    html.escale-sortie video[data-escale-sortie] {
-      visibility: visible !important; position: fixed !important; inset: 0 !important; left: 0 !important; top: 0 !important;
-      width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important;
-      object-fit: contain !important; transform: none !important; z-index: 2147482000 !important; background: #000 !important;
-    }
   `;
 
   const hote = el('div', { style: 'position:fixed;inset:0;z-index:2147483000;display:none' });
@@ -130,6 +161,7 @@ function scriptLecteur(L) {
   let glisseProgression = false;
   const rafraichir = () => {
     if (!sortie || !video) return;
+    figer();
     bLecture.replaceChildren(video.paused ? ICONES.lecture() : ICONES.pause());
     const fini = Number.isFinite(video.duration);
     progression.style.display = fini ? '' : 'none'; // un direct n'a pas de fin
@@ -239,14 +271,14 @@ function scriptLecteur(L) {
       if (sortie) {
         video = choisir();
         if (!video) return false;
-        video.setAttribute('data-escale-sortie', '');
+        figer();
         if (!styleSortie.isConnected) document.documentElement.append(styleSortie);
         if (!hote.isConnected) document.documentElement.append(hote);
         hote.style.display = 'block';
         son(Number.isFinite(niveau) ? niveau : video.muted ? 0 : Math.round(video.volume * 100));
         reveiller();
       } else {
-        video?.removeAttribute('data-escale-sortie');
+        liberer();
         hote.style.display = 'none';
         cadre.classList.remove('visibles');
         video = null;
@@ -254,7 +286,8 @@ function scriptLecteur(L) {
       document.documentElement.classList.toggle('escale-sortie', sortie);
       return true;
     },
-    prendre: () => ({
+    // Relevé toutes les 40 ms : c'est aussi le tic qui repose les styles.
+    prendre: () => (rafraichir(), {
       demandes: file.splice(0),
       ratio: video && video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 0,
       absente: sortie && (!video || !video.isConnected)

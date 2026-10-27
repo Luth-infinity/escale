@@ -13,7 +13,7 @@ const videomode = require('./videomode');
  */
 function construire({ agir, ui, onglets, etat, fenetre }) {
   const mac = process.platform === 'darwin';
-  const espaces = etat.lire().espaces.slice(0, 9);
+  const espaces = etat.lire().espaces.filter((e) => !e.prive).slice(0, 9);
   const devtools = () => {
     const id = onglets.courantId();
     onglets.webContentsDe(id)?.toggleDevTools();

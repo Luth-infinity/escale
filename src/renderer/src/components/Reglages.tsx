@@ -117,6 +117,12 @@ function SectionProfil() {
   const [nom, setNom] = React.useState(espace?.nom ?? '');
   React.useEffect(() => setNom(espace?.nom ?? ''), [espace?.id, espace?.nom]);
   if (!espace) return null;
+  if (espace.prive)
+    return (
+      <Carte>
+        <Ligne titre={t('Navigation privée')} detail={t('Ni historique, ni cookies gardés, ni extensions ; tout s’efface quand vous la quittez. Raccourci : Ctrl Maj N.')} />
+      </Carte>
+    );
   const modifier = (patch: Record<string, unknown>) => agir('espace.modifier', { id: espace.id, ...patch });
   const valider = () => {
     const propre = nom.trim().slice(0, 80);
@@ -472,7 +478,7 @@ const SECTIONS: Section[] = [
           <EffacerDonnees />
         </Carte>
         <Carte titre={t('Navigation privée')}>
-          <Ligne titre={t('Ouvrir un espace privé')} detail={t('Ni historique, ni cookies gardés, ni extensions ; il disparaît à la fermeture d’Escale. Raccourci : Ctrl Maj N.')}>
+          <Ligne titre={t('Passer en navigation privée')} detail={t('Ni historique, ni cookies gardés, ni extensions ; tout s’efface quand vous la quittez. Raccourci : Ctrl Maj N.')}>
             <button onClick={() => agir('espace.prive', { nom: t('Navigation privée') })} className={bouton}>
               {t('Ouvrir')}
             </button>

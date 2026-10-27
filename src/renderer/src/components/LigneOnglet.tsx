@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
-import { Volume2, VolumeX, X } from 'lucide-react';
+import { PictureInPicture2, Volume2, VolumeX, X } from 'lucide-react';
 import { agir, useEtat, useVivant } from '@/etat';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
@@ -60,6 +60,20 @@ export const LigneOnglet = React.memo(function LigneOnglet({ id, profondeur, rai
       {!rail && (
         <>
       <span className={cn('relative min-w-0 flex-1 truncate text-[13px]', endormi && !actif && 'text-shell-muted')}>{nom}</span>
+      {/* Un onglet qui joue (Plex, Netflix…) : sa vidéo peut sortir, même quand
+          le site remplace le clic droit par son propre menu. */}
+      {vivant?.son && (
+        <button
+          title={t('Sortir la vidéo')}
+          onClick={(e) => {
+            e.stopPropagation();
+            agir('video.sortir', { id });
+          }}
+          className="relative shrink-0 rounded p-0.5 text-shell-muted hover:text-shell-foreground"
+        >
+          <PictureInPicture2 className="size-3.5" />
+        </button>
+      )}
       {(vivant?.son || onglet.muet) && (
         <button
           title={onglet.muet ? t('Rétablir le son') : t('Couper le son')}

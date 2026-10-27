@@ -25,6 +25,7 @@ const teinteValide = (t) => t === null || /^#[0-9a-f]{6}$/i.test(t);
 // Une icône d'espace : un emoji (16 caractères au plus) ou une photo réduite
 // par le shell à 128 px, en data URL (le CSP du shell n'admet que data:).
 const ICONE_MAX = 64_000;
+let avantPrive = null; // l'espace d'où l'on est entré en navigation privée
 const iconeValide = (i) =>
   i === undefined || i === null || i.length <= 16 || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(i);
 
@@ -88,6 +89,15 @@ const ACTIONS = {
       if (o) ctx.onglets.ouvrir(o.espaceId, o.url, { apres: o.epingle ? null : id, actif: true });
     }
   },
+  // La vidéo de l'onglet dans sa petite fenêtre, ou de retour.
+  'video.sortir': {
+    schema: objet({ id: ID }),
+    fn: (ctx, { id }) => {
+      const videomode = require('./videomode');
+      if (videomode.estSortie(id)) videomode.fermer();
+      else return videomode.ouvrir(id);
+    }
+  },
   'onglet.muet': {
     schema: objet({ id: ID, oui: OUI }),
     fn: (ctx, { id, oui }) => {
@@ -131,14 +141,24 @@ const ACTIONS = {
       ctx.etat.appliquer('modifierEspace', id, patch);
     }
   },
-  // Navigation privée : un espace à part, en mémoire seulement (arbre.js).
+  // Navigation privée : un MODE, pas un espace de plus. Derrière, c'est un
+  // espace caché du sélecteur, en mémoire seulement (arbre.js) ; l'appel
+  // bascule : y entrer, ou en sortir en effaçant tout ce qu'il contenait.
   'espace.prive': {
     schema: objet({ nom: NOM }),
     fn: (ctx, { nom }) => {
-      // Un seul espace privé à la fois : y retourner plutôt qu'en ouvrir un autre.
-      const id =
-        ctx.etat.lire().espaces.find((e) => e.prive)?.id ??
-        ctx.etat.appliquer('ajouterEspace', { nom, prive: true, icone: '🕶️', teinte: '#5b6472' }).deltas[0].espace.id;
+      const e = ctx.etat.lire();
+      const prive = e.espaces.find((x) => x.prive);
+      if (prive && e.espaceActif === prive.id) {
+        const retour = e.espaces.find((x) => x.id === avantPrive && !x.prive) ?? e.espaces.find((x) => !x.prive);
+        ctx.etat.appliquer('activerEspace', retour.id);
+        ctx.etat.appliquer('supprimerEspace', prive.id);
+        // La partition vit en mémoire jusqu'à la fermeture d'Escale : on la vide tout de suite.
+        require('electron').session.fromPartition(prive.partition).clearStorageData().catch(() => {});
+        return null;
+      }
+      avantPrive = e.espaceActif;
+      const id = prive?.id ?? ctx.etat.appliquer('ajouterEspace', { nom, prive: true, icone: '🕶️', teinte: '#5b6472' }).deltas[0].espace.id;
       ctx.etat.appliquer('activerEspace', id);
       return id;
     }
