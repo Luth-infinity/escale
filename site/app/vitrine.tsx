@@ -223,10 +223,7 @@ export default async function Vitrine({ t, locale }: { t: Contenu; locale: Langu
                 {t.telecharger.toutes}
               </a>
             </p>
-            <p className="mx-auto mt-8 max-w-[60ch] rounded-lg bg-page px-4 py-3 text-sm leading-relaxed text-ink-soft">
-              {t.telecharger.prive}
-            </p>
-            <div className="mx-auto mt-3 max-w-[60ch] space-y-2 text-[13px] leading-relaxed break-words text-ink-soft">
+            <div className="mx-auto mt-8 max-w-[60ch] space-y-2 text-[13px] leading-relaxed break-words text-ink-soft">
               <span data-cta="mac" className="block">
                 {t.telecharger.noteMac}
               </span>

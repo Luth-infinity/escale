@@ -38,7 +38,6 @@ export type Contenu = {
     texte: string;
     mac: string;
     win: string;
-    prive: string;
     noteMac: string;
     noteWin: string;
     toutes: string;
@@ -184,6 +183,16 @@ export const fr: Contenu = {
         titre: 'Rien d’instantané, rien de lent',
         texte:
           'Chaque geste se termine par un mouvement court et interruptible : on voit d’où vient l’onglet et où il va. Avec « réduire les animations », tout devient un fondu.'
+      },
+      {
+        titre: 'La vidéo à part',
+        texte:
+          'Sur n’importe quel site, une vidéo sort dans une petite fenêtre qui reste au-dessus de tout : avancer, reculer, régler le son, la glisser, l’agrandir.'
+      },
+      {
+        titre: 'À votre image',
+        texte:
+          'Couleur d’accent, teinte des espaces, page encadrée ou bord à bord, largeur de la barre, et une photo pour chaque espace. Fermée, la barre se réduit à ses icônes.'
       }
     ]
   },
@@ -263,8 +272,6 @@ export const fr: Contenu = {
     texte: 'Gratuit. Aucun compte à créer.',
     mac: 'macOS · Apple Silicon',
     win: 'Windows · x64',
-    prive:
-      'Le dépôt est encore privé : les liens fonctionneront dès la première version publique.',
     noteMac:
       'L’application n’est pas encore signée. Au premier lancement, ouvrez le Terminal et lancez : xattr -dr com.apple.quarantine /Applications/Escale.app',
     noteWin: 'L’application n’est pas encore signée : SmartScreen avertit au premier lancement, choisissez « Exécuter quand même ».',
@@ -320,6 +327,16 @@ export const en: Contenu = {
         titre: 'Nothing abrupt, nothing slow',
         texte:
           'Every action ends in a short, interruptible motion: you see where a tab comes from and where it goes. With “reduce motion”, it all becomes a fade.'
+      },
+      {
+        titre: 'Video on the side',
+        texte:
+          'On any site, a video pops out into a small window that stays on top of everything: seek, skip, set the volume, drag it, resize it.'
+      },
+      {
+        titre: 'Made yours',
+        texte:
+          'Accent colour, space tint, framed or edge-to-edge page, sidebar width, and a photo for each space. Closed, the sidebar shrinks to its icons.'
       }
     ]
   },
@@ -398,7 +415,6 @@ export const en: Contenu = {
     texte: 'Free. No account to create.',
     mac: 'macOS · Apple Silicon',
     win: 'Windows · x64',
-    prive: 'The repository is still private: these links will work from the first public release.',
     noteMac:
       'The app is not signed yet. On first launch, open Terminal and run: xattr -dr com.apple.quarantine /Applications/Escale.app',
     noteWin: 'The app is not signed yet: SmartScreen warns on first launch, choose “Run anyway”.',
