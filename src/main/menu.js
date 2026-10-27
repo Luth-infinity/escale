@@ -1,6 +1,7 @@
 const { app, Menu } = require('electron');
 const { t } = require('./i18n');
 const outils = require('./outils-page');
+const videomode = require('./videomode');
 
 /**
  * Le menu natif et ses raccourcis. Les commandes d'interface (barre de
@@ -79,7 +80,16 @@ function construire({ agir, ui, onglets, etat, fenetre }) {
         { label: t('Rechercher dans la page'), accelerator: 'CmdOrCtrl+F', click: () => ui('chercher') },
         { label: t('Mode lecture'), accelerator: 'CmdOrCtrl+Alt+R', click: surPage(outils.lecture) },
         { label: t('Traduire la page'), accelerator: 'CmdOrCtrl+Alt+T', click: surPage(outils.traduire) },
-        { label: t('Image dans l’image'), accelerator: 'CmdOrCtrl+Alt+P', click: surPage(outils.imageDansImage) },
+        // La vidéo de la page dans une petite fenêtre au-dessus de tout, n'importe quel site ; un second appel la ramène.
+        {
+          label: t('Sortir la vidéo'),
+          accelerator: 'CmdOrCtrl+Alt+P',
+          click: () => {
+            const id = onglets.courantId();
+            if (id && videomode.estSortie(id)) videomode.fermer();
+            else if (id) videomode.ouvrir(id);
+          }
+        },
         { type: 'separator' },
         { label: t('Recharger'), accelerator: 'CmdOrCtrl+R', click: () => agir('nav.recharger', {}) },
         { label: t('Recharger sans le cache'), accelerator: 'CmdOrCtrl+Shift+R', click: () => agir('nav.recharger', { sansCache: true }) },
@@ -88,8 +98,8 @@ function construire({ agir, ui, onglets, etat, fenetre }) {
         { label: t('Zoom arrière'), accelerator: 'CmdOrCtrl+-', click: () => agir('page.zoom', { sens: 'moins' }) },
         { label: t('Taille réelle'), accelerator: 'CmdOrCtrl+0', click: () => agir('page.zoom', { sens: 'normal' }) },
         { type: 'separator' },
-        { label: t('Masquer la barre latérale'), accelerator: 'CmdOrCtrl+S', click: () => ui('masquer') },
-        { label: t('Réduire la barre latérale'), accelerator: 'CmdOrCtrl+Shift+S', click: () => ui('replier') },
+        { label: t('Réduire la barre latérale'), accelerator: 'CmdOrCtrl+S', click: () => ui('replier') },
+        { label: t('Masquer la barre latérale'), accelerator: 'CmdOrCtrl+Shift+S', click: () => ui('masquer') },
         { label: t('Outils de développement'), accelerator: mac ? 'Alt+Cmd+I' : 'Ctrl+Shift+I', click: devtools },
         { type: 'separator' },
         { role: 'togglefullscreen', label: t('Plein écran') }

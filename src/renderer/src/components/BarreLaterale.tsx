@@ -13,7 +13,6 @@ import { BandeauMaj } from './BandeauMaj';
 import { Logo } from './Logo';
 import { TelechargementsVideo } from './YouTube';
 
-export const LARGEUR = 240;
 export const LARGEUR_RAIL = 56;
 const SEUIL_BALAYAGE = 70; // px de balayage horizontal pour changer d'espace
 const FIN_GESTE_MS = 120; // silence de la molette qui marque la fin du geste
@@ -63,6 +62,7 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
   const transition = useMouvement();
   const nav = useNav();
   const rail = useEtat((e) => e.reglages.barreRepliee);
+  const largeur = useEtat((e) => e.reglages.largeurBarre) || 240;
   const espaces = useEtat((e) => e.espaces);
   const espaceActif = useEtat((e) => e.espaceActif);
   const onglets = useEtat((e) => e.onglets);
@@ -125,7 +125,7 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
     {cachee && <div onMouseEnter={reveler} className="fixed inset-y-0 left-0 z-30 w-2" />}
     <motion.aside
       initial={false}
-      animate={{ width: cachee ? 0 : rail ? LARGEUR_RAIL : LARGEUR }}
+      animate={{ width: cachee ? 0 : rail ? LARGEUR_RAIL : largeur }}
       transition={transition}
       onWheel={surMolette}
       className="flex h-full shrink-0 flex-col overflow-hidden"
@@ -138,10 +138,16 @@ export const BarreLaterale = React.memo(function BarreLaterale({ ouvrirCommande 
           </div>
         )}
         {mac && !rail && <span className="mr-auto" />}
+        {/* Fermer la barre la réduit en rail : on garde ses onglets sous la main. */}
+        {rail && (
+          <BoutonNav titre={t('Déplier la barre (Ctrl+S)')} onClick={() => commandeLocale('replier')}>
+            <PanelLeft className="size-4" />
+          </BoutonNav>
+        )}
         {!rail && (
           <>
-            <BoutonNav titre={masquee ? t('Garder la barre (Ctrl+S)') : t('Masquer la barre (Ctrl+S)')} onClick={() => commandeLocale('masquer')}>
-              {masquee ? <PanelLeft className="size-4" /> : <PanelLeftClose className="size-4" />}
+            <BoutonNav titre={t('Réduire la barre (Ctrl+S)')} onClick={() => commandeLocale('replier')}>
+              <PanelLeftClose className="size-4" />
             </BoutonNav>
             <BoutonNav titre={t('Précédent')} desactive={!nav?.peutReculer} onClick={() => agir('nav.precedent')}>
               <ArrowLeft className="size-4" />

@@ -21,7 +21,7 @@ export function TransitionPage() {
   });
   const duree = reduit ? 0.1 : DUREE;
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[10px]">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-(--rayon-page)">
       <AnimatePresence>
         {images && (
           <motion.div key={images.n} className="absolute inset-0" exit={{ opacity: 0, transition: { duration: 0.06 } }}>

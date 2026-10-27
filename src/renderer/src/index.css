@@ -62,9 +62,10 @@ html {
      chaque mélange retombe alors sur sa propre base via le second argument de
      `var()`, ce qui rend le mix neutre à l'identique (mélanger `transparent`
      rognerait l'alpha). */
-  --mix-bg: 10%;
-  --mix-raised: 6%;
-  --mix-border: 42%;
+  --mix-bg: calc(10% * var(--intensite, 1));
+  --mix-raised: calc(6% * var(--intensite, 1));
+  --mix-border: calc(42% * var(--intensite, 1));
+  --rayon-page: 10px;
   /* L'accent d'Escale : un vert d'eau profond, réservé à l'onglet actif, au
      focus, aux contrôles cochés et au logo. */
   --accent-escale: oklch(0.56 0.1 190);
@@ -100,9 +101,9 @@ html {
   --shell-input: oklch(0 0 0 / 25%);
   /* En sombre la couleur se lit mal : on dose plus fort qu'en clair, tout en
      gardant un fond franchement sombre. */
-  --mix-bg: 30%;
-  --mix-raised: 24%;
-  --mix-border: 46%;
+  --mix-bg: calc(30% * var(--intensite, 1));
+  --mix-raised: calc(24% * var(--intensite, 1));
+  --mix-border: calc(46% * var(--intensite, 1));
   --accent-escale: oklch(0.72 0.1 190);
 }
 

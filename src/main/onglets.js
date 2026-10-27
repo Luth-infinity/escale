@@ -25,7 +25,9 @@ const { aEndormir, regrouperMeta } = require('./onglets-purs');
  * c'est appliquer `activer` au modèle : le delta `active:changed` revient ici
  * et la vue s'affiche.
  */
-const RAYON = 10;
+// L'arrondi de la page suit le réglage « cadre » (les mêmes valeurs que le shell).
+const RAYONS = { arrondi: 10, net: 4, bord: 0 };
+const rayon = () => RAYONS[etat.reglages().cadre] ?? 10;
 // Durée du fondu croisé joué par le shell au changement d'onglet ; la vue
 // entrante n'est révélée qu'ensuite (une vue native se peint par-dessus le HTML).
 const TRANSITION_MS = 170;
@@ -59,9 +61,17 @@ function init(options) {
   historique = options.historique;
   dev = options.dev;
   // Le mode vidéo emprunte les vues d'ici ; la page y passe en « vidéo seule ».
-  videomode.configurer({ onglets: module.exports, poserClasse: (wc, actif) => ambiance.poserSortie(wc, actif) });
+  videomode.configurer({
+    onglets: module.exports,
+    poserClasse: (wc, actif) => ambiance.poserSortie(wc, actif),
+    libelles: libellesLecteur,
+    youtube: { sur: ambiance.surYouTube, ...ambiance.LECTEUR_YOUTUBE }
+  });
   etat.ecouter(surDelta);
   // Basculer l'ambiance ou les sponsors prévient aussitôt les pages YouTube ouvertes.
+  etat.ecouter((d) => {
+    if (d.type === 'settings:changed' && 'cadre' in d.patch) for (const vue of vues.values()) vue.setBorderRadius(rayon());
+  });
   etat.ecouter((d) => {
     if (d.type !== 'settings:changed' || !('ambiance' in d.patch || 'sponsors' in d.patch)) return;
     for (const vue of vues.values()) ambiance.appliquer(vue.webContents, etat.reglages());
@@ -142,7 +152,7 @@ async function assurerVue(id) {
     // plugins : la visionneuse PDF de Chromium ; sans elle, un PDF se télécharge au lieu de s'afficher.
     webPreferences: { session: ses, sandbox: true, contextIsolation: true, nodeIntegration: false, nodeIntegrationInSubFrames: true, spellcheck: true, plugins: true }
   });
-  vue.setBorderRadius(RAYON);
+  vue.setBorderRadius(rayon());
   // Le fond par défaut d'un navigateur : sans lui, une page qui ne peint pas
   // le sien (ou pas encore) laisse voir le shell sombre, un écran noir.
   vue.setBackgroundColor('#ffffff');
@@ -170,14 +180,24 @@ function hote(url) {
   }
 }
 
+// Les textes des commandes de la vidéo sortie (lecteur.js).
+const libellesLecteur = () => ({
+  rentrer: t('Revenir dans Escale'),
+  fermer: t('Fermer'),
+  lecture: t('Lecture / pause'),
+  recul: t('Reculer de 10 s'),
+  avance: t('Avancer de 10 s'),
+  position: t('Position'),
+  muet: t('Couper le son'),
+  volume: t('Volume'),
+  redimensionner: t('Glisser pour agrandir'),
+  direct: t('En direct')
+});
+
 // Les textes de la bulle YouTube, dans la langue d'Escale.
 const libellesBulle = () => ({
   ambiance: t('Ambiance'),
   sortir: t('Sortir la vidéo'),
-  lecture: t('Lecture / pause'),
-  volume: t('Volume'),
-  rentrer: t('Revenir dans Escale'),
-  deplacer: t('Glisser pour déplacer'),
   sponsors: t('Passer sponsors et pubs'),
   telecharger: t('Télécharger'),
   afficher: t('Afficher dans le dossier'),
@@ -215,8 +235,6 @@ function cabler(vue, id) {
     },
     passages: (idVideo) => sponsors.passages(idVideo),
     sortir: () => videomode.ouvrir(id),
-    rentrer: () => videomode.fermer(),
-    glisser: (actif) => videomode.glisser(actif),
     estSortie: () => videomode.estSortie(id)
   });
 
@@ -290,6 +308,7 @@ function cabler(vue, id) {
       if (o) ouvrir(o.espaceId, url, { apres: id, actif: false });
     },
     rechercher: searchUrl,
+    sortirVideo: () => videomode.ouvrir(id),
     extensions: (params) => extensions.menuContextuel(wc, params),
     dev
   });
@@ -461,7 +480,7 @@ function poserCourante() {
   const vue = courant ? vues.get(courant) : null;
   if (!vue || courant === sortie) return;
   vue.setBounds(boite());
-  vue.setBorderRadius(pleinEcran && pleinEcran === courant ? 0 : RAYON);
+  vue.setBorderRadius(pleinEcran && pleinEcran === courant ? 0 : rayon());
 }
 
 /** La géométrie de la zone de page, mesurée par le shell. */

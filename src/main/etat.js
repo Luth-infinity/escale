@@ -17,6 +17,11 @@ const REGLAGES = {
   theme: 'system',
   barreRepliee: false,
   barreMasquee: false,
+  // Apparence
+  accent: null, // null = le vert d'eau d'Escale
+  intensiteTeinte: 1,
+  cadre: 'arrondi',
+  largeurBarre: 240,
   ambiance: false,
   sponsors: true,
   derniereVersionVue: null,

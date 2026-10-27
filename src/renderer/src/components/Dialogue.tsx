@@ -25,8 +25,8 @@ export function Dialogue({ question }: { question: Question }) {
   }, [refuser]);
   return (
     <div className="absolute inset-0 z-30" onMouseDown={(e) => e.target === e.currentTarget && refuser()}>
-      {fond && <img src={fond} alt="" className="pointer-events-none absolute inset-0 size-full rounded-[10px] object-cover" />}
-      <motion.div className="pointer-events-none absolute inset-0 rounded-[10px] bg-black/10 dark:bg-black/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.12 }} />
+      {fond && <img src={fond} alt="" className="pointer-events-none absolute inset-0 size-full rounded-(--rayon-page) object-cover" />}
+      <motion.div className="pointer-events-none absolute inset-0 rounded-(--rayon-page) bg-black/10 dark:bg-black/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.12 }} />
       <motion.div
         key={id}
         role="alertdialog"

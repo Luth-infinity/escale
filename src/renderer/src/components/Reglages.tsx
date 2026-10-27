@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, Globe, History, Info, Keyboard, PanelsTopLeft, Play, Shield, SlidersHorizontal, UserRound, X } from 'lucide-react';
+import { Check, Globe, ImagePlus, Palette, History, Info, Keyboard, PanelsTopLeft, Play, Shield, SlidersHorizontal, UserRound, X } from 'lucide-react';
 import { agir, commandeLocale, useEtat } from '@/etat';
 import { t } from '@/lib/i18n';
 import { useModalePage } from '@/lib/modale';
@@ -8,6 +8,7 @@ import { useMouvement } from '@/lib/ressorts';
 import { cn } from '@/lib/utils';
 import type { Reglages as R } from '@/types';
 import { Logo } from './Logo';
+import { IconeEspace } from './SelecteurEspaces';
 
 /*
  * Les réglages : une navigation par thème à gauche, et à droite des cartes de
@@ -99,6 +100,17 @@ function Selection<K extends keyof R>({ cle, titre, detail, options }: { cle: K;
 const TEINTES = ['#3a7f6b', '#3b6fb6', '#6d5bb8', '#b9577c', '#b5523b', '#a9832c', '#5c7a3a', '#5b6472'];
 const EMOJIS = ['🏠', '💼', '🎮', '🎨', '📚', '🎧', '✈️', '🛒', '💻', '⚽'];
 
+/** Recadre la photo au carré, au centre, et la réduit à 128 px : elle voyage par l'IPC et dort dans escale.json. */
+async function reduirePhoto(fichier: File) {
+  const img = await createImageBitmap(fichier);
+  const cote = Math.min(img.width, img.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  canvas.getContext('2d')!.drawImage(img, (img.width - cote) / 2, (img.height - cote) / 2, cote, cote, 0, 0, 128, 128);
+  img.close();
+  return canvas.toDataURL('image/webp', 0.85);
+}
+
 /** Le profil, c'est l'espace actif : la pastille du bas de la barre porte son initiale, ou son emoji, sur sa couleur. */
 function SectionProfil() {
   const espace = useEtat((e) => e.espaces.find((x) => x.id === e.espaceActif));
@@ -111,13 +123,14 @@ function SectionProfil() {
     if (propre && propre !== espace.nom) modifier({ nom: propre });
     else setNom(espace.nom);
   };
+  const photo = espace.icone?.startsWith('data:image/') ?? false;
   const pastille = 'grid size-8 place-items-center rounded-full transition-transform duration-150 hover:scale-110';
   const anneau = 'ring-2 ring-shell-foreground/40 ring-offset-2 ring-offset-shell-raised';
   return (
     <>
       <div className="flex items-center gap-4 rounded-xl border border-shell-border bg-shell-base/40 p-4">
-        <span className="grid size-14 shrink-0 place-items-center rounded-full text-[22px] font-semibold text-white shadow-sm" style={{ background: espace.teinte || 'var(--accent-escale)' }}>
-          {espace.icone || espace.nom.charAt(0).toUpperCase()}
+        <span className="relative grid size-14 shrink-0 place-items-center overflow-hidden rounded-full text-[22px] font-semibold text-white shadow-sm" style={{ background: espace.teinte || 'var(--accent-escale)' }}>
+          <IconeEspace nom={espace.nom} icone={espace.icone} taille="text-[22px]" />
         </span>
         <div className="min-w-0 flex-1">
           <input
@@ -141,6 +154,19 @@ function SectionProfil() {
               {e}
             </button>
           ))}
+          <label title={t('Une photo')} className={cn(pastille, 'relative cursor-pointer overflow-hidden text-shell-muted hover:text-shell-foreground', photo && 'bg-shell-active')}>
+            {photo ? <img src={espace.icone!} alt="" className="absolute inset-1 size-6 rounded-full object-cover" /> : <ImagePlus className="size-4" />}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="sr-only"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) modifier({ icone: await reduirePhoto(f) });
+              }}
+            />
+          </label>
           <input
             maxLength={4}
             placeholder="🙂"
@@ -164,6 +190,35 @@ function SectionProfil() {
             <button key={c} onClick={() => modifier({ teinte: c })} className={cn('size-7 rounded-full transition-transform duration-150 hover:scale-110', espace.teinte === c && anneau)} style={{ background: c }} />
           ))}
         </div>
+      </Carte>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------- Apparence
+
+const ACCENTS = ['#2f8f86', '#3b6fb6', '#6d5bb8', '#b9577c', '#c2563a', '#b08a1e', '#4f8a3c', '#5b6472'];
+
+function SectionApparence() {
+  const accent = useEtat((e) => e.reglages.accent);
+  const anneau = 'ring-2 ring-shell-foreground/40 ring-offset-2 ring-offset-shell-raised';
+  return (
+    <>
+      <Carte titre={t('Couleurs')}>
+        <Selection cle="theme" titre="Thème" options={[['system', 'Système'], ['light', 'Clair'], ['dark', 'Sombre']]} />
+        <Ligne titre={t('Couleur d’accent')} detail={t('L’onglet actif, le focus et les interrupteurs.')} dessous>
+          <div className="flex flex-wrap items-center gap-2">
+            <button title={t('Vert d’eau d’Escale')} onClick={() => agir('reglages.modifier', { accent: null })} className={cn('size-7 rounded-full bg-[oklch(0.56_0.1_190)] transition-transform duration-150 hover:scale-110', !accent && anneau)} />
+            {ACCENTS.map((c) => (
+              <button key={c} onClick={() => agir('reglages.modifier', { accent: c })} className={cn('size-7 rounded-full transition-transform duration-150 hover:scale-110', accent === c && anneau)} style={{ background: c }} />
+            ))}
+          </div>
+        </Ligne>
+        <Selection cle="intensiteTeinte" titre="Teinte des espaces" detail="La couleur de l’espace actif sur la barre et le cadre." options={[[0, 'Aucune'], [0.5, 'Légère'], [1, 'Normale'], [1.8, 'Marquée']]} />
+      </Carte>
+      <Carte titre={t('Mise en page')}>
+        <Selection cle="cadre" titre="Cadre de la page" options={[['arrondi', 'Arrondi'], ['net', 'Net'], ['bord', 'Bord à bord']]} />
+        <Selection cle="largeurBarre" titre="Largeur de la barre latérale" options={[[200, 'Étroite'], [240, 'Normale'], [280, 'Large'], [320, 'Très large']]} />
       </Carte>
     </>
   );
@@ -311,8 +366,8 @@ function ImportFirefox() {
 const CTRL = window.escale.plateforme === 'darwin' ? '⌘' : 'Ctrl';
 const RACCOURCIS: [string, [string, string][]][] = [
   ['Onglets', [['Nouvel onglet', `${CTRL} T`], ['Fermer l’onglet', `${CTRL} W`], ['Rouvrir l’onglet fermé', `${CTRL} Maj T`], ['Onglet suivant', 'Ctrl Tab'], ['Onglet précédent', 'Ctrl Maj Tab'], ['Changer d’espace', `${CTRL} 1 … 9`]]],
-  ['Page', [['Ouvrir une adresse', `${CTRL} L`], ['Rechercher dans la page', `${CTRL} F`], ['Mode lecture', `${CTRL} Alt R`], ['Traduire la page', `${CTRL} Alt T`], ['Image dans l’image', `${CTRL} Alt P`], ['Imprimer', `${CTRL} P`], ['Enregistrer la page', `${CTRL} Alt S`]]],
-  ['Escale', [['Masquer la barre latérale', `${CTRL} S`], ['Réduire la barre latérale', `${CTRL} Maj S`], ['Historique', `${CTRL} H`], ['Navigation privée', `${CTRL} Maj N`], ['Réglages', `${CTRL} ,`]]]
+  ['Page', [['Ouvrir une adresse', `${CTRL} L`], ['Rechercher dans la page', `${CTRL} F`], ['Mode lecture', `${CTRL} Alt R`], ['Traduire la page', `${CTRL} Alt T`], ['Sortir la vidéo', `${CTRL} Alt P`], ['Imprimer', `${CTRL} P`], ['Enregistrer la page', `${CTRL} Alt S`]]],
+  ['Escale', [['Réduire la barre latérale', `${CTRL} S`], ['Masquer la barre latérale', `${CTRL} Maj S`], ['Historique', `${CTRL} H`], ['Navigation privée', `${CTRL} Maj N`], ['Réglages', `${CTRL} ,`]]]
 ];
 
 function SectionRaccourcis() {
@@ -370,8 +425,7 @@ const SECTIONS: Section[] = [
     icone: SlidersHorizontal,
     contenu: () => (
       <>
-        <Carte titre={t('Apparence')}>
-          <Selection cle="theme" titre="Thème" options={[['system', 'Système'], ['light', 'Clair'], ['dark', 'Sombre']]} />
+        <Carte titre={t('Langue')}>
           <Selection cle="langue" titre="Langue" options={[['system', 'Système'], ['fr', 'Français'], ['en', 'English']]} />
         </Carte>
         <Carte titre={t('Recherche')}>
@@ -381,6 +435,7 @@ const SECTIONS: Section[] = [
       </>
     )
   },
+  { id: 'apparence', titre: 'Apparence', icone: Palette, contenu: () => <SectionApparence /> },
   {
     id: 'onglets',
     titre: 'Onglets',
@@ -392,8 +447,8 @@ const SECTIONS: Section[] = [
           <Selection cle="veilleMinutes" titre="Mettre en veille les onglets inactifs après" detail="Un onglet en veille libère sa mémoire et se recharge quand on y revient." options={[[10, '10 min'], [20, '20 min'], [60, '1 h'], [0, 'Jamais']]} />
         </Carte>
         <Carte titre={t('Barre latérale')}>
-          <Bascule cle="barreMasquee" titre="Masquer la barre latérale" detail="Elle revient quand le pointeur touche le bord gauche. Raccourci : Ctrl S." />
-          <Bascule cle="barreRepliee" titre="Barre réduite" detail="Seulement les icônes des onglets. Raccourci : Ctrl Maj S." />
+          <Bascule cle="barreRepliee" titre="Barre réduite" detail="Seulement les icônes des onglets. Raccourci : Ctrl S." />
+          <Bascule cle="barreMasquee" titre="Masquer la barre latérale" detail="Elle revient quand le pointeur touche le bord gauche. Raccourci : Ctrl Maj S." />
         </Carte>
       </>
     )
@@ -427,15 +482,23 @@ const SECTIONS: Section[] = [
     )
   },
   {
-    id: 'youtube',
-    titre: 'YouTube',
+    id: 'video',
+    titre: 'Vidéo',
     icone: Play,
     contenu: () => (
-      <Carte titre={t('Sur YouTube')}>
-        <Bascule cle="ambiance" titre="Ambiance" detail="Prolonge la vidéo derrière la page pendant la lecture." />
-        <Bascule cle="sponsors" titre="Passer sponsors et pubs" detail="Passages signalés par SponsorBlock, et bouton « Ignorer » des publicités." />
-        <Ligne titre={t('Télécharger une vidéo')} detail={t('Depuis la bulle d’Escale, sur la page de la vidéo : MP4, MP3, M4A, WAV ou miniature. Les fichiers vont dans Téléchargements.')} />
-      </Carte>
+      <>
+        <Carte titre={t('Sur tous les sites')}>
+          <Ligne
+            titre={t('Sortir la vidéo')}
+            detail={t('Dans une petite fenêtre qui reste au-dessus de tout. Clic droit sur une vidéo, ou Ctrl Alt P. Glissez l’image pour la déplacer, le coin pour l’agrandir, double-cliquez pour basculer en grand.')}
+          />
+        </Carte>
+        <Carte titre={t('Sur YouTube')}>
+          <Bascule cle="ambiance" titre="Ambiance" detail="Prolonge la vidéo derrière la page pendant la lecture." />
+          <Bascule cle="sponsors" titre="Passer sponsors et pubs" detail="Passages signalés par SponsorBlock, et bouton « Ignorer » des publicités." />
+          <Ligne titre={t('Télécharger une vidéo')} detail={t('Depuis la bulle d’Escale, sur la page de la vidéo : MP4, MP3, M4A, WAV ou miniature. Les fichiers vont dans Téléchargements.')} />
+        </Carte>
+      </>
     )
   },
   {
@@ -482,8 +545,8 @@ export function Reglages({ fermer }: { fermer: () => void }) {
   const active = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
   return (
     <div className="absolute inset-0 z-20" onMouseDown={(e) => e.target === e.currentTarget && fermer()}>
-      {fond && <img src={fond} alt="" className="pointer-events-none absolute inset-0 size-full rounded-[10px] object-cover" />}
-      <motion.div className="pointer-events-none absolute inset-0 rounded-[10px] bg-black/10 dark:bg-black/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.12 }} />
+      {fond && <img src={fond} alt="" className="pointer-events-none absolute inset-0 size-full rounded-(--rayon-page) object-cover" />}
+      <motion.div className="pointer-events-none absolute inset-0 rounded-(--rayon-page) bg-black/10 dark:bg-black/30" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.12 }} />
       <motion.div
         role="dialog"
         aria-label={t('Réglages')}

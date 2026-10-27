@@ -16,7 +16,7 @@ function extrait(texte) {
   return net.length > MAX_EXTRAIT ? `${net.slice(0, MAX_EXTRAIT)}…` : net;
 }
 
-function brancher(wc, { fenetre, ouvrirOnglet, rechercher, extensions = () => [], dev = false }) {
+function brancher(wc, { fenetre, ouvrirOnglet, rechercher, sortirVideo, extensions = () => [], dev = false }) {
   wc.on('context-menu', (_e, params) => {
     const items = [];
     const ajouter = (opts) => items.push(new MenuItem(opts));
@@ -45,6 +45,11 @@ function brancher(wc, { fenetre, ouvrirOnglet, rechercher, extensions = () => []
     if (params.linkURL) {
       ajouter({ label: t('Ouvrir dans un nouvel onglet'), click: () => ouvrirOnglet(params.linkURL) });
       ajouter({ label: t("Copier l'adresse du lien"), click: () => clipboard.writeText(params.linkURL) });
+      separer();
+    }
+
+    if (params.mediaType === 'video' && sortirVideo) {
+      ajouter({ label: t('Sortir la vidéo'), click: sortirVideo });
       separer();
     }
 

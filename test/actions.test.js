@@ -59,3 +59,13 @@ test('la pile des onglets fermés garde les 25 derniers', () => {
   assert.strictEqual(ctx.fermes.length, 25);
   assert.strictEqual(ctx.fermes.at(-1).url, 'u29');
 });
+
+test('espace.modifier : une photo en data URL passe, une autre URL non', () => {
+  const a = ACTIONS['espace.modifier'];
+  const appels = [];
+  const ctx = { etat: { appliquer: (...x) => appels.push(x) } };
+  const photo = 'data:image/webp;base64,UklGRg==';
+  a.fn(ctx, valider(a.schema, { id: 'e1', icone: photo }));
+  assert.equal(appels[0][2].icone, photo);
+  assert.throws(() => a.fn(ctx, valider(a.schema, { id: 'e1', icone: 'https://exemple.fr/une-image-distante.png' })), /icone/);
+});

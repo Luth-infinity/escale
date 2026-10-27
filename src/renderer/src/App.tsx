@@ -52,12 +52,14 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale
   const mac = window.escale.plateforme === 'darwin';
   // Barre masquée : 8 px de shell à gauche, où le pointeur la fait revenir.
   const masquee = useEtat((e) => e.reglages.barreMasquee);
+  // « Bord à bord » : ni marge ni filet, la page touche la barre et la fenêtre.
+  const bord = useEtat((e) => e.reglages.cadre === 'bord');
   return (
-    <main className={cn('relative flex min-w-0 flex-1 flex-col p-2', !masquee && 'pl-0', !mac && 'pt-0')}>
+    <main className={cn('relative flex min-w-0 flex-1 flex-col', bord ? 'p-0' : 'p-2', !masquee && 'pl-0', masquee && 'pl-2', !mac && 'pt-0')}>
       {!mac && <div className="drag h-9 w-full shrink-0" />}
-      <div className="flex min-h-0 w-full flex-1 flex-col rounded-[11px] border border-shell-border bg-shell-raised p-px">
+      <div className={cn('flex min-h-0 w-full flex-1 flex-col rounded-[calc(var(--rayon-page)+1px)] bg-shell-raised', !bord && 'border border-shell-border p-px')}>
         <AnimatePresence>{recherche && <BarreRecherche fermer={fermerRecherche} />}</AnimatePresence>
-        <div ref={ref} id="zone-page" className="relative min-h-0 w-full flex-1 rounded-[10px]">
+        <div ref={ref} id="zone-page" className="relative min-h-0 w-full flex-1 rounded-(--rayon-page)">
           <TransitionPage />
           {/* Une question en attente passe devant tout ; ce qu'elle masque revient après. */}
           {question && <Dialogue key={question.id} question={question} />}
@@ -72,6 +74,19 @@ function ZonePage({ commande, fermerCommande, recherche, fermerRecherche, modale
 }
 
 /** La teinte de l'espace actif, très légère, posée sur <html> (piège : pas sur un div). */
+/** Les réglages d'apparence, posés en variables CSS sur <html> (index.css). */
+const RAYONS_PAGE = { arrondi: 10, net: 4, bord: 0 };
+function useApparence() {
+  const { accent, intensiteTeinte, cadre } = useEtat((e) => e.reglages);
+  React.useEffect(() => {
+    const racine = document.documentElement.style;
+    if (accent) racine.setProperty('--accent-escale', accent);
+    else racine.removeProperty('--accent-escale');
+    racine.setProperty('--intensite', String(intensiteTeinte ?? 1));
+    racine.setProperty('--rayon-page', `${RAYONS_PAGE[cadre] ?? 10}px`);
+  }, [accent, intensiteTeinte, cadre]);
+}
+
 function useTeinteEspace(sombre: boolean) {
   const teinte = useEtat((e) => e.espaces.find((x) => x.id === e.espaceActif)?.teinte ?? null);
   React.useEffect(() => {
@@ -87,6 +102,7 @@ function useTeinteEspace(sombre: boolean) {
 function Shell() {
   const sombre = useSyncedTheme();
   useTeinteEspace(sombre);
+  useApparence();
   const [commande, setCommande] = React.useState<Commande>(null);
   const [recherche, setRecherche] = React.useState(false);
   const [modale, setModale] = React.useState<Modale>(null);

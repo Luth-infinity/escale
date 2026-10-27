@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Clock, Globe, Pin, Search, SquareStack } from 'lucide-react';
-import { agir } from '@/etat';
+import { agir, lireEtat, useNav } from '@/etat';
 import { useMouvement } from '@/lib/ressorts';
 import { useModalePage } from '@/lib/modale';
 import { cn } from '@/lib/utils';
@@ -30,7 +30,9 @@ const DELAI_SUGGESTIONS = 120;
  */
 export function BarreCommande({ nouvelOnglet, depuis, fermer }: { nouvelOnglet: boolean; depuis?: number; fermer: () => void }) {
   const transition = useMouvement();
-  const [texte, setTexte] = React.useState('');
+  const nav = useNav();
+  // Cmd+L : l'adresse de la page, déjà sélectionnée, pour la copier ou la retaper.
+  const [texte, setTexte] = React.useState(() => (!nouvelOnglet && nav && nav.id === lireEtat().ongletActif ? nav.url : ''));
   const [locaux, setLocaux] = React.useState<Resultat[]>([]);
   const [web, setWeb] = React.useState<string[]>([]);
   const [actif, setActif] = React.useState(0);
@@ -38,6 +40,7 @@ export function BarreCommande({ nouvelOnglet, depuis, fermer }: { nouvelOnglet: 
   const fond = useModalePage();
   React.useLayoutEffect(() => {
     champ.current?.focus();
+    champ.current?.select();
     // Latence touche → première image (cible < 100 ms).
     if (depuis) requestAnimationFrame(() => console.debug(`[escale] barre de commande : ${Date.now() - depuis} ms`));
   }, [depuis]);
@@ -72,9 +75,9 @@ export function BarreCommande({ nouvelOnglet, depuis, fermer }: { nouvelOnglet: 
 
   return (
     <div className="absolute inset-0 z-20" onMouseDown={(e) => e.target === e.currentTarget && fermer()}>
-      {fond && <img src={fond} alt="" className="pointer-events-none absolute inset-0 size-full rounded-[10px] object-cover" />}
+      {fond && <img src={fond} alt="" className="pointer-events-none absolute inset-0 size-full rounded-(--rayon-page) object-cover" />}
       <motion.div
-        className="pointer-events-none absolute inset-0 rounded-[10px] bg-black/10 dark:bg-black/30"
+        className="pointer-events-none absolute inset-0 rounded-(--rayon-page) bg-black/10 dark:bg-black/30"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.12 }}

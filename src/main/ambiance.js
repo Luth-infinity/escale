@@ -764,99 +764,17 @@ function scriptBulle(L) {
   poser();
   peindre();
 
-  // ---- mode vidéo : la page sortie dans sa petite fenêtre (videomode.js) ----
-  // La page n'est pas remaniée : tout devient invisible, la vidéo repasse
-  // visible et fixée sur toute la fenêtre. Déplacer l'élément dans le DOM ne
-  // tiendrait pas : YouTube le remet aussitôt en place (Hublink).
-  const styleSortie = document.createElement('style');
-  styleSortie.textContent = `
-    html.escale-sortie, html.escale-sortie body { background: #000 !important; overflow: hidden !important; }
-    html.escale-sortie body * { visibility: hidden !important; }
-    html.escale-sortie #movie_player video.html5-main-video {
-      visibility: visible !important; position: fixed !important; inset: 0 !important; left: 0 !important; top: 0 !important;
-      width: 100vw !important; height: 100vh !important; object-fit: contain !important; transform: none !important;
-      z-index: 2147482000 !important; background: #000 !important;
-    }
-    html.escale-sortie #escale-ambiance { display: none !important; }
-  `;
-  const STYLE_COMMANDES = `
-    .commandes { position: fixed; left: 0; right: 0; bottom: 0; top: 0; pointer-events: none; opacity: 0; transition: opacity .25s; display: none; }
-    .sortie .commandes { display: block; }
-    .commandes.visibles { opacity: 1; }
-    .poignee { position: absolute; left: 0; right: 0; top: 0; height: 40px; pointer-events: auto; cursor: grab;
-      background: linear-gradient(rgba(0, 0, 0, .45), transparent); }
-    .poignee:active { cursor: grabbing; }
-    .barre-video {
-      position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 5px;
-      border-radius: 999px; pointer-events: auto; color: #fff;
-      background: rgba(20, 22, 26, 0.42); backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 30px -10px rgba(0, 0, 0, .7);
-    }
-    .barre-video button { width: auto; padding: 8px; border-radius: 999px; color: #fff; }
-    .barre-video button:hover { background: rgba(255, 255, 255, 0.14); }
-    .barre-video input { width: 84px; accent-color: #1fb3a9; }
-    .sortie .bulle, .sortie .panneau, .sortie .toast { display: none !important; }
-  `;
+  // ---- mode vidéo : la page sortie a ses propres commandes (lecteur.js) ;
+  // la bulle se retire le temps de la sortie.
   const styleCommandes = document.createElement('style');
-  styleCommandes.textContent = STYLE_COMMANDES;
+  styleCommandes.textContent = '.sortie .bulle, .sortie .panneau, .sortie .toast { display: none !important; }';
   racine.append(styleCommandes);
-  const bLecture = el('button', { title: L.lecture }, [ICONES.pause()]);
-  const volume = el('input', { type: 'range', min: '0', max: '100', value: '100', title: L.volume });
-  const bRentrer = el('button', { title: L.rentrer }, [ICONES.rentrer()]);
-  const poignee = el('div', { class: 'poignee', title: L.deplacer });
-  const commandes = el('div', { class: 'commandes' }, [poignee, el('div', { class: 'barre-video' }, [bLecture, el('span', { style: 'display:flex;padding:0 2px' }, [ICONES.son()]), volume, bRentrer])]);
-  monde.append(commandes);
-
-  const videoPrincipale = () => document.querySelector('#movie_player video.html5-main-video') || document.querySelector('#movie_player video');
-  const iconeLecture = () => {
-    const v = videoPrincipale();
-    bLecture.replaceChildren(v && !v.paused ? ICONES.pause() : ICONES.lecture());
-  };
-  // Les commandes ne paraissent qu'au survol, et restent tant que la vidéo est en pause.
-  let minuteurCommandes = 0;
-  const reveiller = () => {
-    if (!etat.sortie) return;
-    commandes.classList.add('visibles');
-    iconeLecture();
-    clearTimeout(minuteurCommandes);
-    minuteurCommandes = setTimeout(() => {
-      const v = videoPrincipale();
-      if (v && !v.paused) commandes.classList.remove('visibles');
-    }, 2200);
-  };
-  document.addEventListener('mousemove', reveiller, true);
-  document.addEventListener('mouseleave', () => {
-    const v = videoPrincipale();
-    if (v && !v.paused) commandes.classList.remove('visibles');
-  });
-  window.addEventListener('play', iconeLecture, true);
-  window.addEventListener('pause', () => {
-    iconeLecture();
-    reveiller();
-  }, true);
-  bLecture.addEventListener('click', () => file.push({ type: 'lecture' }));
-  volume.addEventListener('input', () => file.push({ type: 'son', valeur: Number(volume.value) }));
-  bRentrer.addEventListener('click', () => file.push({ type: 'rentrer' }));
-  // Le déplacement passe par le principal, qui suit le pointeur : la fenêtre ne
-  // prend jamais le premier plan, une zone « drag » n'y suffirait pas.
-  poignee.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    poignee.setPointerCapture(e.pointerId);
-    file.push({ type: 'glisser', actif: true });
-  });
-  const finGlisser = () => file.push({ type: 'glisser', actif: false });
-  poignee.addEventListener('pointerup', finGlisser);
-  poignee.addEventListener('pointercancel', finGlisser);
 
   window.__escaleBulle = {
-    sortie: (actif, son) => {
+    sortie: (actif) => {
       etat.sortie = Boolean(actif);
-      if (etat.sortie && !styleSortie.isConnected) document.documentElement.append(styleSortie);
-      document.documentElement.classList.toggle('escale-sortie', etat.sortie);
       monde.classList.toggle('sortie', etat.sortie);
-      if (Number.isFinite(son)) volume.value = String(son);
       montrer(null);
-      if (etat.sortie) reveiller();
     },
     prendre: () => ({ demandes: file.splice(0), video: idVideo(), pub: boutonIgnorer() }),
     ambiance: (actif) => {
@@ -919,19 +837,18 @@ const basculerLecture = `(p => p && (p.getPlayerState() === 1 ? p.pauseVideo() :
 const reglerSon = (v) => `(p => { if (!p) return; p.unMute(); p.setVolume(${Math.max(0, Math.min(100, Math.round(v)))}); })(${LECTEUR})`;
 const lireSon = `(p => (p && p.getVolume ? (p.isMuted() ? 0 : p.getVolume()) : 100))(${LECTEUR})`;
 
-/** Passe la page en mode vidéo (vidéo seule, commandes au survol) ou l'en sort. */
-async function poserSortie(wc, actif) {
+/** La bulle se retire pendant que la page est sortie en mode vidéo. */
+function poserSortie(wc, actif) {
   if (wc.isDestroyed()) return;
-  const son = actif ? await wc.executeJavaScript(lireSon).catch(() => 100) : null;
-  wc.executeJavaScriptInIsolatedWorld(MONDE, [{ code: `window.__escaleBulle && window.__escaleBulle.sortie(${ia(actif)}, ${Number(son) || 0});` }]).catch(() => {});
+  wc.executeJavaScriptInIsolatedWorld(MONDE, [{ code: `window.__escaleBulle && window.__escaleBulle.sortie(${ia(actif)});` }]).catch(() => {});
 }
 
 /**
  * À chaque page YouTube : ambiance et bulle suivent les réglages, et les
  * demandes de la bulle sont relevées tant que la page est sur YouTube — plus
- * souvent quand elle est sortie en mode vidéo, où l'on glisse la fenêtre.
+ * rarement quand elle est sortie en mode vidéo (lecteur.js a ses commandes).
  * `o` : { reglages(), libelles(), basculer(cle), telecharger(wc, format), montrer(id),
- *         passages(idVideo), sortir(wc), rentrer(wc), glisser(actif), estSortie(wc) }.
+ *         passages(idVideo), sortir(wc), estSortie(wc) }.
  */
 function brancher(wc, o) {
   wc.on('dom-ready', () => appliquer(wc, o.reglages(), o.libelles()));
@@ -939,7 +856,7 @@ function brancher(wc, o) {
   const relever = async () => {
     if (wc.isDestroyed()) return;
     if (surYouTube(wc.getURL())) await releverUneFois();
-    setTimeout(relever, o.estSortie(wc) ? 50 : 300);
+    setTimeout(relever, o.estSortie(wc) ? 1000 : 300);
   };
   const releverUneFois = async () => {
     const r = await wc
@@ -952,10 +869,6 @@ function brancher(wc, o) {
       if (d?.type === 'telecharger' && typeof d.format === 'string') o.telecharger(wc, d.format);
       if (d?.type === 'montrer' && typeof d.id === 'string') o.montrer(d.id);
       if (d?.type === 'sortir') o.sortir(wc);
-      if (d?.type === 'rentrer') o.rentrer(wc);
-      if (d?.type === 'glisser') o.glisser(Boolean(d.actif));
-      if (d?.type === 'lecture') wc.executeJavaScript(basculerLecture).catch(() => {});
-      if (d?.type === 'son' && Number.isFinite(d.valeur)) wc.executeJavaScript(reglerSon(d.valeur)).catch(() => {});
     }
     // Nouvelle vidéo : ses passages sponsorisés, si le réglage le veut.
     if (r.video !== videoVue) {
@@ -977,4 +890,4 @@ function brancher(wc, o) {
   relever();
 }
 
-module.exports = { brancher, appliquer, signalerVideo, surYouTube, poserSortie };
+module.exports = { brancher, appliquer, signalerVideo, surYouTube, poserSortie, LECTEUR_YOUTUBE: { lireSon, basculerLecture, reglerSon } };

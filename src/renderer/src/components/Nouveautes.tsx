@@ -15,8 +15,8 @@ export function Nouveautes({ version, points, fermer }: { version: string; point
   };
   return (
     <div className="absolute inset-0 z-20">
-      {fond && <img src={fond} alt="" className="pointer-events-none absolute inset-0 size-full rounded-[10px] object-cover" />}
-      <div className="pointer-events-none absolute inset-0 rounded-[10px] bg-black/10 dark:bg-black/30" />
+      {fond && <img src={fond} alt="" className="pointer-events-none absolute inset-0 size-full rounded-(--rayon-page) object-cover" />}
+      <div className="pointer-events-none absolute inset-0 rounded-(--rayon-page) bg-black/10 dark:bg-black/30" />
       <motion.div
         role="dialog"
         aria-label={t('Nouveautés')}

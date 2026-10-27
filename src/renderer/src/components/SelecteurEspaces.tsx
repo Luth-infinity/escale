@@ -1,11 +1,17 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
-import { Plus, Puzzle, Settings } from 'lucide-react';
+import { Plus, Puzzle, Settings, VenetianMask } from 'lucide-react';
 import { agir, commandeLocale, useCommande, useEtat } from '@/etat';
 import { cn } from '@/lib/utils';
 import { t } from '@/lib/i18n';
 import { ChampNom } from './LigneDossier';
 import { useMouvement } from '@/lib/ressorts';
+
+/** L'icône d'un espace : sa photo, son emoji, ou son initiale. */
+export function IconeEspace({ nom, icone, taille }: { nom: string; icone: string | null; taille: string }) {
+  if (icone?.startsWith('data:image/')) return <img src={icone} alt="" className="absolute inset-0 size-full rounded-full object-cover" />;
+  return icone ? <span className={cn(taille, 'leading-none')}>{icone}</span> : <>{nom.charAt(0).toUpperCase()}</>;
+}
 
 function Pastille({ nom, icone, teinte, active }: { nom: string; icone: string | null; teinte: string | null; active: boolean }) {
   const transition = useMouvement();
@@ -16,10 +22,10 @@ function Pastille({ nom, icone, teinte, active }: { nom: string; icone: string |
         <motion.span layoutId="anneau-espace" transition={transition} className="absolute -inset-[3px] rounded-full ring-[1.5px] ring-shell-foreground/25" />
       )}
       <span
-        className={cn('grid size-5 place-items-center rounded-full text-[10px] font-semibold transition-colors duration-200', active ? 'text-white' : 'text-shell-muted')}
+        className={cn('relative grid size-5 place-items-center overflow-hidden rounded-full text-[10px] font-semibold transition-colors duration-200', active ? 'text-white' : 'text-shell-muted')}
         style={{ background: active ? teinte || 'var(--accent-escale)' : 'var(--shell-active)' }}
       >
-        {icone ? <span className="text-[12px] leading-none">{icone}</span> : nom.charAt(0).toUpperCase()}
+        <IconeEspace nom={nom} icone={icone} taille="text-[12px]" />
       </span>
     </span>
   );
@@ -131,6 +137,13 @@ export function SelecteurEspaces({ rail = false }: { rail?: boolean }) {
         </button>
       ))}
       {!rail && <span className="flex-1" />}
+      <button
+        title={t('Navigation privée (Ctrl+Maj+N)')}
+        onClick={() => agir('espace.prive', { nom: t('Navigation privée') })}
+        className="grid size-7 place-items-center rounded-md text-shell-muted transition-colors hover:bg-shell-hover hover:text-shell-foreground"
+      >
+        <VenetianMask className="size-4" />
+      </button>
       <button
         title={t('Nouvel espace')}
         onClick={async () => {

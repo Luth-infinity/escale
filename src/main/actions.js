@@ -22,6 +22,11 @@ const ZOOMS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
 // Une teinte est injectée dans le CSS du shell : on n'accepte que #rrggbb.
 const teinteValide = (t) => t === null || /^#[0-9a-f]{6}$/i.test(t);
+// Une icône d'espace : un emoji (16 caractères au plus) ou une photo réduite
+// par le shell à 128 px, en data URL (le CSP du shell n'admet que data:).
+const ICONE_MAX = 64_000;
+const iconeValide = (i) =>
+  i === undefined || i === null || i.length <= 16 || /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+=*$/.test(i);
 
 function wcCourant(ctx) {
   const id = ctx.onglets.courantId();
@@ -119,9 +124,10 @@ const ACTIONS = {
   },
   'espace.activer': { schema: objet({ id: ID }), fn: (ctx, { id }) => ctx.etat.appliquer('activerEspace', id) },
   'espace.modifier': {
-    schema: objet({ id: ID, nom: opt(NOM), teinte: opt(TEINTE), icone: opt({ type: 'string', max: 16, nul: true }) }),
+    schema: objet({ id: ID, nom: opt(NOM), teinte: opt(TEINTE), icone: opt({ type: 'string', max: ICONE_MAX, nul: true }) }),
     fn: (ctx, { id, ...patch }) => {
       if ('teinte' in patch && !teinteValide(patch.teinte)) throw new Error('payload-invalide: teinte');
+      if (!iconeValide(patch.icone)) throw new Error('payload-invalide: icone');
       ctx.etat.appliquer('modifierEspace', id, patch);
     }
   },
@@ -129,7 +135,10 @@ const ACTIONS = {
   'espace.prive': {
     schema: objet({ nom: NOM }),
     fn: (ctx, { nom }) => {
-      const id = ctx.etat.appliquer('ajouterEspace', { nom, prive: true, icone: '🕶️', teinte: '#5b6472' }).deltas[0].espace.id;
+      // Un seul espace privé à la fois : y retourner plutôt qu'en ouvrir un autre.
+      const id =
+        ctx.etat.lire().espaces.find((e) => e.prive)?.id ??
+        ctx.etat.appliquer('ajouterEspace', { nom, prive: true, icone: '🕶️', teinte: '#5b6472' }).deltas[0].espace.id;
       ctx.etat.appliquer('activerEspace', id);
       return id;
     }
@@ -217,9 +226,18 @@ const ACTIONS = {
       sponsors: opt(OUI),
       fermetureAutoHeures: opt({ type: 'enum', valeurs: [0, 6, 12, 24, 168] }),
       veilleMinutes: opt({ type: 'enum', valeurs: [0, 10, 20, 60] }),
-      derniereVersionVue: opt({ type: 'string', max: 20 })
+      derniereVersionVue: opt({ type: 'string', max: 20 }),
+      barreRepliee: opt(OUI),
+      barreMasquee: opt(OUI),
+      accent: opt(TEINTE),
+      intensiteTeinte: opt({ type: 'enum', valeurs: [0, 0.5, 1, 1.8] }),
+      cadre: opt({ type: 'enum', valeurs: ['arrondi', 'net', 'bord'] }),
+      largeurBarre: opt({ type: 'enum', valeurs: [200, 240, 280, 320] })
     }),
-    fn: (ctx, patch) => ctx.etat.regler(patch)
+    fn: (ctx, patch) => {
+      if ('accent' in patch && !teinteValide(patch.accent)) throw new Error('payload-invalide: accent');
+      ctx.etat.regler(patch);
+    }
   },
   'barre.replier': { schema: objet({ oui: OUI }), fn: (ctx, { oui }) => ctx.etat.regler({ barreRepliee: oui }) },
   'barre.masquer': { schema: objet({ oui: OUI }), fn: (ctx, { oui }) => ctx.etat.regler({ barreMasquee: oui }) }

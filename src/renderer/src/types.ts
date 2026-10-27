@@ -11,6 +11,7 @@ export type Reglages = {
   fermetureAutoHeures: number; veilleMinutes: number; bloqueur: boolean; suggestions: boolean; moteur: string;
   langue: string; theme: string; barreRepliee: boolean; barreMasquee: boolean; zoom: Record<string, number>; derniereVersionVue: string | null;
   ambiance: boolean; sponsors: boolean;
+  accent: string | null; intensiteTeinte: number; cadre: 'arrondi' | 'net' | 'bord'; largeurBarre: number;
 };
 export type Etat = {
   version: 1; espaces: Espace[]; dossiers: Dossier[]; onglets: Onglet[]; espaceActif: string; ongletActif: string | null;

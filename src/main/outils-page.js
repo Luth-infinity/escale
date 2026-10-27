@@ -5,7 +5,7 @@ const { t, getLanguage } = require('./i18n');
 
 /**
  * Ce qu'on fait d'une page : l'imprimer, l'enregistrer, la lire au calme, la
- * traduire, en sortir la vidéo. Tout agit sur l'onglet affiché.
+ * traduire. Tout agit sur l'onglet affiché.
  */
 const nomDeFichier = (titre) => (titre || 'page').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 120) || 'page';
 
@@ -24,21 +24,6 @@ async function enregistrer(wc, fenetre) {
   if (canceled || !filePath) return;
   if (filePath.toLowerCase().endsWith('.pdf')) fs.writeFileSync(filePath, await wc.printToPDF({ printBackground: true }));
   else await wc.savePage(filePath, 'HTMLComplete');
-}
-
-/** La plus grande vidéo de la page passe en image dans l'image ; un second appel l'en sort. */
-function imageDansImage(wc) {
-  return wc.executeJavaScript(
-    `(async () => {
-      if (document.pictureInPictureElement) { await document.exitPictureInPicture(); return 'sortie'; }
-      const v = [...document.querySelectorAll('video')].filter((x) => x.readyState > 0 && !x.disablePictureInPicture)
-        .sort((a, b) => b.clientWidth * b.clientHeight - a.clientWidth * a.clientHeight)[0];
-      if (!v) return 'aucune';
-      await v.requestPictureInPicture();
-      return 'ok';
-    })()`,
-    true
-  ).catch(() => 'erreur');
 }
 
 /**
@@ -99,4 +84,4 @@ ${article.contenu}
   return 'ok';
 }
 
-module.exports = { imprimer, enregistrer, imageDansImage, traduire, lecture, nomDeFichier };
+module.exports = { imprimer, enregistrer, traduire, lecture, nomDeFichier };
