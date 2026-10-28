@@ -50,10 +50,11 @@ function scriptAmbiance() {
   const ZONES = { page: 'ytd-app', bas: 'ytd-watch-flexy #primary', droite: 'ytd-watch-flexy #secondary' };
   // YouTube colore aussi son texte par des variables au nom haché, qui changent
   // d'une version à l'autre : la couleur est donc posée directement, sauf sur
-  // ce qui porte son propre fond (boutons pleins, badges des miniatures, champs).
+  // ce qui porte son propre fond. Les classes ne disent plus si un bouton est
+  // plein (« S'abonner ») ou une pastille transparente (J'aime, Partager) :
+  // marquerBoutonsPleins le mesure et pose data-escale-plein.
   const PROPRE_FOND = [
-    'button', 'button *', 'yt-button-shape *', 'a.yt-spec-button-shape-next', 'a.yt-spec-button-shape-next *',
-    'ytd-thumbnail *', 'yt-thumbnail-view-model *', 'input', 'textarea', '[contenteditable]'
+    '[data-escale-plein]', '[data-escale-plein] *', 'ytd-thumbnail *', 'yt-thumbnail-view-model *', 'input', 'textarea', '[contenteditable]'
   ].join(', ');
   const regle = (avant, portee, ton) =>
     `${avant} ${portee}, ${avant} ${portee} * { ${Object.entries(TEXTE[ton]).map(([k, v]) => `${k}: ${v} !important;`).join(' ')} }\n` +
@@ -217,6 +218,7 @@ ${CONTRASTE}
     const maintenant = performance.now();
     if (maintenant - mesure < 500) return;
     mesure = maintenant;
+    marquerBoutonsPleins();
     const { c } = a.miniature;
     let px;
     try {
@@ -245,6 +247,15 @@ ${CONTRASTE}
       bas: vue((_x, y) => y === c.height - 1), // bord bas étiré sous le lecteur
       droite: vue((x) => x === c.width - 1) // bord droit étiré sous les suggestions
     });
+  };
+  // Un bouton à fond plein (opacité ≥ 0,5) garde son texte : il contraste avec
+  // son propre fond, pas avec l'ambiance. Relu à chaque mesure : « S'abonner »
+  // devient une pastille « Abonné » une fois cliqué.
+  const marquerBoutonsPleins = () => {
+    for (const b of document.querySelectorAll('ytd-app button, ytd-app a[role="button"], ytd-app a.yt-spec-button-shape-next')) {
+      const m = getComputedStyle(b).backgroundColor.match(/[\d.]+/g) || [];
+      b.toggleAttribute('data-escale-plein', Number(m[3] ?? (m.length ? 1 : 0)) >= 0.5);
+    }
   };
   // Fond sombre sous 120, clair au-dessus de 150, sinon on garde le choix
   // précédent : le texte ne clignote pas sur une image à la limite. Le point
