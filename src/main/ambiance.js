@@ -22,6 +22,54 @@ const surYouTube = (url) => {
    l'image pleine. */
 function scriptAmbiance() {
   if (window.__escaleAmbiance) return;
+  /* Le texte suit le FOND, pas le thème de YouTube : une vidéo sombre sous le
+     thème clair laissait un texte noir sur du noir, une vidéo claire sous le
+     thème sombre l'inverse. Le fond n'est pas uniforme (bord bas de l'image
+     étiré sous le lecteur, bord droit à droite) : chaque zone mesure le sien
+     (mesurerFond) et prend le texte qui contraste. Les jetons sont posés sur
+     chaque élément, prioritaires : les blocs de YouTube (titre, chaîne,
+     description) redéclarent les leurs. */
+  const TEXTE = {
+    clair: {
+      '--yt-spec-text-primary': '#0f0f0f', '--yt-spec-text-secondary': 'rgba(0, 0, 0, 0.74)', '--yt-spec-text-disabled': 'rgba(0, 0, 0, 0.5)',
+      '--yt-spec-icon-inactive': '#0f0f0f', '--yt-spec-icon-active-other': '#0f0f0f', '--yt-spec-call-to-action': '#065fd4',
+      '--yt-sys-color-baseline--text-primary': '#0f0f0f', '--yt-sys-color-baseline--text-secondary': 'rgba(0, 0, 0, 0.74)',
+      '--yt-sys-color-baseline--text-disabled': 'rgba(0, 0, 0, 0.5)'
+    },
+    sombre: {
+      '--yt-spec-text-primary': '#fff', '--yt-spec-text-secondary': 'rgba(255, 255, 255, 0.85)', '--yt-spec-text-disabled': 'rgba(255, 255, 255, 0.6)',
+      '--yt-spec-icon-inactive': '#fff', '--yt-spec-icon-active-other': '#fff', '--yt-spec-call-to-action': '#3ea6ff',
+      '--yt-spec-10-percent-layer': 'rgba(255, 255, 255, 0.2)', '--yt-spec-badge-chip-background': 'rgba(255, 255, 255, 0.12)',
+      '--yt-spec-button-chip-background-hover': 'rgba(255, 255, 255, 0.2)',
+      '--yt-sys-color-baseline--text-primary': '#fff', '--yt-sys-color-baseline--text-secondary': 'rgba(255, 255, 255, 0.85)',
+      '--yt-sys-color-baseline--text-disabled': 'rgba(255, 255, 255, 0.6)'
+    }
+  };
+  const OMBRE = { clair: '0 1px 3px rgba(255, 255, 255, 0.55)', sombre: '0 1px 3px rgba(0, 0, 0, 0.6)' };
+  // Zone → où elle s'applique. Plus loin dans la liste = plus précis, l'emporte.
+  const ZONES = { page: 'ytd-app', bas: 'ytd-watch-flexy #primary', droite: 'ytd-watch-flexy #secondary' };
+  // YouTube colore aussi son texte par des variables au nom haché, qui changent
+  // d'une version à l'autre : la couleur est donc posée directement, sauf sur
+  // ce qui porte son propre fond (boutons pleins, badges des miniatures, champs).
+  const PROPRE_FOND = [
+    'button', 'button *', 'yt-button-shape *', 'a.yt-spec-button-shape-next', 'a.yt-spec-button-shape-next *',
+    'ytd-thumbnail *', 'yt-thumbnail-view-model *', 'input', 'textarea', '[contenteditable]'
+  ].join(', ');
+  const regle = (avant, portee, ton) =>
+    `${avant} ${portee}, ${avant} ${portee} * { ${Object.entries(TEXTE[ton]).map(([k, v]) => `${k}: ${v} !important;`).join(' ')} }\n` +
+    `${avant} ${portee} { color: ${TEXTE[ton]['--yt-spec-text-primary']}; text-shadow: ${OMBRE[ton]}; }\n` +
+    `${avant} ${portee} *:not(${PROPRE_FOND}) { color: ${TEXTE[ton]['--yt-spec-text-primary']} !important; }`;
+  const CONTRASTE = [
+    ...Object.entries(ZONES).flatMap(([zone, portee]) =>
+      ['clair', 'sombre'].map((ton) => regle(`html.escale-ambiance.escale-${zone}-${ton}`, portee, ton))
+    ),
+    // Barre du haut, menus et tiroir : fond du thème (voilé ou opaque), ils
+    // gardent le texte du thème.
+    regle('html.escale-ambiance:not([dark])', ':is(#masthead-container, ytd-popup-container, tp-yt-app-drawer)', 'clair'),
+    regle('html.escale-ambiance[dark]', ':is(#masthead-container, ytd-popup-container, tp-yt-app-drawer)', 'sombre'),
+    'html.escale-ambiance :is(#masthead-container, ytd-popup-container, tp-yt-app-drawer) { text-shadow: none; }'
+  ].join('\n');
+
   const STYLE = `
     html.escale-ambiance { --escale-fond: #fff; }
     html.escale-ambiance[dark] { --escale-fond: #0f0f0f; }
@@ -50,12 +98,7 @@ function scriptAmbiance() {
     html[dark] #escale-ambiance canvas { filter: blur(24px) saturate(1.4) brightness(0.8); }
     #escale-ambiance::after { content: ''; position: absolute; inset: 0; background: rgba(255, 255, 255, 0.3); }
     html[dark] #escale-ambiance::after { background: rgba(15, 15, 15, 0.15); }
-    html.escale-ambiance ytd-app { --yt-spec-text-secondary: rgba(0, 0, 0, 0.78); text-shadow: 0 1px 3px rgba(255, 255, 255, 0.55); }
-    html.escale-ambiance[dark] ytd-app {
-      --yt-spec-text-primary: #fff;
-      --yt-spec-text-secondary: rgba(255, 255, 255, 0.85);
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    }
+${CONTRASTE}
   `;
   // Au-dessus de 256 × 256 points, Chromium confie la toile à la carte graphique.
   const LARGEUR = 384;
@@ -73,7 +116,7 @@ function scriptAmbiance() {
   };
   const toileDeTravail = () => {
     const c = document.createElement('canvas');
-    return { c, ctx: c.getContext('2d') };
+    return { c, ctx: c.getContext('2d', { willReadFrequently: true }) };
   };
 
   const ajusterToile = () => {
@@ -166,6 +209,58 @@ function scriptAmbiance() {
     a.candidat = vu;
   };
 
+  // Luminosité du fond tel qu'on le verra (vidéo étirée + voile du thème),
+  // relevée deux fois par seconde sur la miniature. Un écart entre les deux
+  // seuils évite que le texte clignote sur une image à la limite.
+  let mesure = 0;
+  const mesurerFond = () => {
+    const maintenant = performance.now();
+    if (maintenant - mesure < 500) return;
+    mesure = maintenant;
+    const { c } = a.miniature;
+    let px;
+    try {
+      px = a.miniature.ctx.getImageData(0, 0, c.width, c.height).data;
+    } catch {
+      return poserFond(null); // image protégée : on retombe sur le thème
+    }
+    const sombreTheme = document.documentElement.hasAttribute('dark');
+    // Luminance vue d'un ensemble de pixels de la miniature : la toile filtrée
+    // (brightness) sous le voile du thème (::after).
+    const vue = (garder) => {
+      let somme = 0;
+      let n = 0;
+      for (let y = 0; y < c.height; y++)
+        for (let x = 0; x < c.width; x++) {
+          if (!garder(x, y)) continue;
+          const i = (y * c.width + x) * 4;
+          somme += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+          n++;
+        }
+      const m = somme / Math.max(1, n);
+      return sombreTheme ? m * 0.8 * 0.85 + 15 * 0.15 : Math.min(255, m * 1.05) * 0.7 + 255 * 0.3;
+    };
+    poserFond({
+      page: vue(() => true),
+      bas: vue((_x, y) => y === c.height - 1), // bord bas étiré sous le lecteur
+      droite: vue((x) => x === c.width - 1) // bord droit étiré sous les suggestions
+    });
+  };
+  // Fond sombre sous 120, clair au-dessus de 150, sinon on garde le choix
+  // précédent : le texte ne clignote pas sur une image à la limite. Le point
+  // d'égal contraste entre noir et blanc est vers 118. `null` : pas de
+  // mesure, le texte suit le thème de YouTube.
+  const poserFond = (lums) => {
+    const d = document.documentElement;
+    for (const zone of ['page', 'bas', 'droite']) {
+      const l = lums?.[zone];
+      const avant = d.classList.contains(`escale-${zone}-sombre`);
+      const sombre = l === undefined ? d.hasAttribute('dark') : avant ? l < 150 : l < 120;
+      d.classList.toggle(`escale-${zone}-sombre`, sombre);
+      d.classList.toggle(`escale-${zone}-clair`, !sombre);
+    }
+  };
+
   const peindre = (v) => {
     if (!v.videoWidth || v.readyState < 2 || document.fullscreenElement) return;
     const { toile, ctx } = a;
@@ -199,6 +294,7 @@ function scriptAmbiance() {
       mini.c.height = mh;
     }
     mini.ctx.drawImage(v, sx, sy, sw, sh, 0, 0, mw, mh);
+    mesurerFond();
     ctx.imageSmoothingQuality = 'high';
     const bloc = (bx, by, bl, bh, dx, dy, dl, dh) => {
       if (dl > 0 && dh > 0) ctx.drawImage(mini.c, bx, by, bl, bh, dx, dy, dl, dh);
@@ -272,9 +368,12 @@ function scriptAmbiance() {
       addEventListener('scroll', () => a.video && peindre(a.video), { passive: true });
     }
     document.documentElement.classList.add('escale-ambiance');
+    poserFond(null);
   };
   const demonter = () => {
-    document.documentElement.classList.remove('escale-ambiance');
+    document.documentElement.classList.remove(
+      'escale-ambiance', ...['page', 'bas', 'droite'].flatMap((z) => [`escale-${z}-sombre`, `escale-${z}-clair`])
+    );
     a.video = null;
     a.generation++;
   };
